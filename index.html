@@ -1,0 +1,852 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Hajra Medical Complex — Clinical Management System</title>
+  
+  <link rel="stylesheet" href="css/app.css" />
+  <link rel="stylesheet" href="css/print.css" />
+  
+  <link rel="icon" type="image/jpeg" href="assets/logo.jpg" />
+</head>
+<body>
+
+  <!-- ── SITE HEADER ──────────────────────────────────────────────── -->
+  <header class="app-header no-print">
+    <div class="brand-section">
+      <img src="assets/logo.jpg" alt="Hajra Medical Complex" class="brand-logo" id="app-logo" />
+      <div class="brand-info">
+        <h1>HAJRA MEDICAL COMPLEX</h1>
+        <p>Jaranwala · Dr. Hafiz Ehsan Qadeer (M.B.B.S. PB, Family Physician)</p>
+      </div>
+    </div>
+
+    <div class="header-actions">
+      <div class="header-clock" id="header-clock">
+        <span>🕒</span>
+        <span id="header-clock-time">Loading...</span>
+      </div>
+
+      <button class="hbtn hbtn-primary" onclick="openAppointmentsModal()" title="Daily Appointments & Tokens">
+        <span>📅</span> Appointments
+      </button>
+
+      <button class="hbtn hbtn-primary" onclick="openBillingModal()" title="Billing & Receipts">
+        <span>💳</span> Billing
+      </button>
+
+      <button class="hbtn hbtn-primary" onclick="openDatabasePrompt()" title="Database Access & Backup">
+        <span>💾</span> Database
+      </button>
+
+      <button class="hbtn hbtn-templates" id="btn-toggle-templates" onclick="toggleTemplatesPanel()" title="Toggle Clinical Templates">
+        <span>⚡</span> Clinical Templates
+      </button>
+    </div>
+  </header>
+
+  <!-- ── APP LAYOUT ───────────────────────────────────────────────── -->
+  <div class="app-container no-print">
+
+    <!-- ── SIDEBAR ────────────────────────────────────────────────── -->
+    <aside class="sidebar">
+      <!-- Dashboard Stats -->
+      <div class="sidebar-block">
+        <div class="sidebar-title">Clinic Overview</div>
+        <div class="stats-grid">
+          <div class="stat-item">
+            <div class="stat-icon blue">👥</div>
+            <div>
+              <div class="stat-val" id="stat-total-val">0</div>
+              <div class="stat-label">Total Patients</div>
+            </div>
+          </div>
+          <div class="stat-item">
+            <div class="stat-icon green">📅</div>
+            <div>
+              <div class="stat-val" id="stat-today-val">0</div>
+              <div class="stat-label">Today's Visits</div>
+            </div>
+          </div>
+          <div class="stat-item">
+            <div class="stat-icon amber">🔄</div>
+            <div>
+              <div class="stat-val" id="stat-returning-val">0</div>
+              <div class="stat-label">Returning Patients</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Live Search -->
+      <div class="sidebar-block" style="flex: 1; display: flex; flex-direction: column;">
+        <div class="sidebar-title">Search Patients</div>
+        <div class="search-input-wrap">
+          <span class="search-icon">🔍</span>
+          <input type="text" id="sidebar-search-input" placeholder="Search by Name, MR, Phone, CNIC..." />
+        </div>
+        <div class="search-list" id="sidebar-search-results">
+          <div style="font-size:12px;color:var(--text-light);text-align:center;padding:12px 0;">Type to search patients...</div>
+        </div>
+      </div>
+
+      <!-- Recent Patients -->
+      <div class="sidebar-block">
+        <div class="sidebar-title">Recent Patients</div>
+        <div class="search-list" id="recent-patients-list">
+          <div style="font-size:11.5px;color:var(--text-light);text-align:center;padding:10px 0;">Loading recents...</div>
+        </div>
+      </div>
+    </aside>
+
+    <!-- ── MAIN WORKSPACE ─────────────────────────────────────────── -->
+    <main class="workspace">
+      <form id="patient-form" onsubmit="event.preventDefault();">
+
+        <!-- 1. Patient Registration & Demographics Card -->
+        <div class="panel-card">
+          <div class="panel-title">
+            <span class="icon">👤</span>
+            <span>Patient Registration & Demographics</span>
+          </div>
+
+          <div class="form-row" style="grid-template-columns: 1.2fr 1fr 1fr 1fr;">
+            <div class="form-group">
+              <label>MR Number / Patient ID</label>
+              <input type="text" id="f-mr" placeholder="HMC-00001" style="font-weight:700;color:var(--teal);" />
+            </div>
+            <div class="form-group">
+              <label>Date (PST)</label>
+              <input type="date" id="f-date" />
+            </div>
+            <div class="form-group">
+              <label>Time</label>
+              <input type="text" id="f-time" readonly />
+            </div>
+            <div class="form-group">
+              <label>Visit Number</label>
+              <input type="number" id="f-visit" min="1" value="1" style="font-weight:700;" />
+            </div>
+          </div>
+
+          <div class="form-row" style="grid-template-columns: 2fr 1fr 2fr;">
+            <div class="form-group">
+              <label>Patient Full Name *</label>
+              <input type="text" id="f-name" placeholder="e.g. Muhammad Ali" required style="font-weight:600;" />
+            </div>
+            <div class="form-group">
+              <label>Relation</label>
+              <select id="f-relation">
+                <option value="S/O">S/O (Son of)</option>
+                <option value="D/O">D/O (Daughter of)</option>
+                <option value="W/O">W/O (Wife of)</option>
+                <option value="H/O">H/O (Husband of)</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label>Parent / Guardian / Spouse Name</label>
+              <input type="text" id="f-parentage" placeholder="Father or Husband name" />
+            </div>
+          </div>
+
+          <div class="form-row" style="grid-template-columns: 1fr 1fr 1fr 1.5fr 1.5fr;">
+            <div class="form-group">
+              <label>Age (Years)</label>
+              <input type="text" id="f-age" placeholder="e.g. 35" />
+            </div>
+            <div class="form-group">
+              <label>Gender</label>
+              <select id="f-gender">
+                <option value="Male">Male</option>
+                <option value="Female">Female</option>
+                <option value="Child">Child</option>
+                <option value="Other">Other</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label>Weight (kg)</label>
+              <input type="text" id="f-weight" placeholder="e.g. 70" />
+            </div>
+            <div class="form-group">
+              <label>Phone / WhatsApp</label>
+              <input type="text" id="f-phone" placeholder="03XXXXXXXXX" />
+            </div>
+            <div class="form-group">
+              <label>CNIC Number</label>
+              <input type="text" id="f-cnic" placeholder="33100-XXXXXXX-X" />
+            </div>
+          </div>
+
+          <div class="form-row">
+            <div class="form-group" style="width:100%;">
+              <label>Residential Address / City</label>
+              <input type="text" id="f-address" placeholder="e.g. Adda Jhaal, Jaranwala" />
+            </div>
+          </div>
+        </div>
+
+        <!-- 2. Patient Vitals Strip -->
+        <div class="vitals-grid">
+          <div class="vital-box">
+            <label>Temp (°F)</label>
+            <input type="text" id="f-temp" placeholder="98.6" />
+          </div>
+          <div class="vital-box">
+            <label>Blood Pressure (B.P)</label>
+            <input type="text" id="f-bp" placeholder="120/80" />
+          </div>
+          <div class="vital-box">
+            <label>R.R (/min)</label>
+            <input type="text" id="f-rr" placeholder="18" />
+          </div>
+          <div class="vital-box">
+            <label>Pulse (/min)</label>
+            <input type="text" id="f-pulse" placeholder="72" />
+          </div>
+        </div>
+
+        <!-- 3. Clinical Examination & Diagnosis Card -->
+        <div class="panel-card">
+          <div class="panel-title">
+            <span class="icon">🩺</span>
+            <span>Clinical Findings & History</span>
+          </div>
+
+          <div class="clinical-grid">
+            <!-- Allergies -->
+            <div class="clinical-box">
+              <div class="clinical-box-header">
+                <label>Allergies</label>
+                <div class="editor-toolbar">
+                  <button type="button" class="tb-btn" onclick="execEditorCmd('bold')">B</button>
+                  <button type="button" class="tb-btn" onclick="execEditorCmd('italic')">I</button>
+                  <button type="button" class="tb-btn" onclick="execEditorCmd('underline')">U</button>
+                </div>
+              </div>
+              <div class="rich-editor" id="ed-allergy" contenteditable="true" placeholder="Known drug or food allergies..."></div>
+            </div>
+
+            <!-- Presenting Complaints -->
+            <div class="clinical-box">
+              <div class="clinical-box-header">
+                <label>P/Complaints & History</label>
+                <div class="editor-toolbar">
+                  <button type="button" class="tb-btn" onclick="execEditorCmd('bold')">B</button>
+                  <button type="button" class="tb-btn" onclick="execEditorCmd('italic')">I</button>
+                  <button type="button" class="tb-btn" onclick="execEditorCmd('insertUnorderedList')">•</button>
+                </div>
+              </div>
+              <div class="rich-editor" id="ed-symptoms" contenteditable="true" placeholder="Presenting complaints, history of illness..."></div>
+            </div>
+
+            <!-- Clinical Findings -->
+            <div class="clinical-box">
+              <div class="clinical-box-header">
+                <label>Clinical Findings / Examination</label>
+                <div class="editor-toolbar">
+                  <button type="button" class="tb-btn" onclick="execEditorCmd('bold')">B</button>
+                  <button type="button" class="tb-btn" onclick="execEditorCmd('italic')">I</button>
+                  <button type="button" class="tb-btn" onclick="execEditorCmd('insertUnorderedList')">•</button>
+                </div>
+              </div>
+              <div class="rich-editor" id="ed-findings" contenteditable="true" placeholder="General physical & systemic examination..."></div>
+            </div>
+
+            <!-- Comments & Advice -->
+            <div class="clinical-box">
+              <div class="clinical-box-header">
+                <label>Comments / Clinical Advice</label>
+                <div class="editor-toolbar">
+                  <button type="button" class="tb-btn" onclick="execEditorCmd('bold')">B</button>
+                  <button type="button" class="tb-btn" onclick="execEditorCmd('italic')">I</button>
+                </div>
+              </div>
+              <div class="rich-editor" id="ed-comments" contenteditable="true" placeholder="Special precautions, diet, bed rest advice..."></div>
+            </div>
+
+            <!-- Investigations -->
+            <div class="clinical-box">
+              <div class="clinical-box-header">
+                <label>Investigations / Lab Tests Advised</label>
+                <div class="editor-toolbar">
+                  <button type="button" class="tb-btn" onclick="execEditorCmd('bold')">B</button>
+                  <button type="button" class="tb-btn" onclick="execEditorCmd('italic')">I</button>
+                  <button type="button" class="tb-btn" onclick="execEditorCmd('insertUnorderedList')">•</button>
+                </div>
+              </div>
+              <div class="rich-editor" id="ed-investigations" contenteditable="true" placeholder="CBC, Blood Sugar, Ultrasound, X-Ray, LFT, RFT..."></div>
+            </div>
+
+            <!-- Provisional / Final Diagnosis -->
+            <div class="clinical-box">
+              <div class="clinical-box-header">
+                <label>Provisional / Final Diagnosis</label>
+                <div class="editor-toolbar">
+                  <button type="button" class="tb-btn" onclick="execEditorCmd('bold')">B</button>
+                  <button type="button" class="tb-btn" onclick="execEditorCmd('italic')">I</button>
+                </div>
+              </div>
+              <div class="rich-editor" id="ed-diagnosis" contenteditable="true" placeholder="Diagnosis (click Clinical Templates to auto-insert)..." style="font-weight:600;color:var(--navy);"></div>
+            </div>
+
+            <!-- Treatment / Rx Prescription -->
+            <div class="clinical-box full-width">
+              <div class="clinical-box-header">
+                <label style="font-size:14px;color:var(--teal);">Rx Treatment / Prescription</label>
+                <div class="editor-toolbar">
+                  <button type="button" class="tb-btn" onclick="execEditorCmd('bold')">B</button>
+                  <button type="button" class="tb-btn" onclick="execEditorCmd('italic')">I</button>
+                  <button type="button" class="tb-btn" onclick="execEditorCmd('underline')">U</button>
+                  <button type="button" class="tb-btn" onclick="execEditorCmd('insertUnorderedList')">• List</button>
+                  <button type="button" class="tb-btn" style="width:auto;padding:0 6px;" onclick="execEditorCmd('removeFormat')">Clear Format</button>
+                </div>
+              </div>
+              <div class="rich-editor treatment-editor" id="ed-treatment" contenteditable="true" placeholder="Type medicines, dosages, duration, instructions or insert from Clinical Templates..."></div>
+            </div>
+          </div>
+
+          <!-- Revisit after -->
+          <div style="margin-top:14px;display:flex;align-items:center;gap:10px;">
+            <label style="font-weight:600;font-size:12.5px;">Revisit After (Days):</label>
+            <input type="text" id="f-revisit" placeholder="e.g. 5" style="width:90px;padding:6px 10px;border:1.5px solid var(--border);border-radius:var(--radius-sm);font-weight:700;" />
+          </div>
+        </div>
+
+      </form>
+    </main>
+
+    <!-- ── RIGHT FLYOUT: CLINICAL TEMPLATES ────────────────────────── -->
+    <aside class="templates-panel" id="templates-flyout">
+      <div class="tpl-header">
+        <h3>⚡ Clinical Templates</h3>
+        <button class="modal-close" onclick="toggleTemplatesPanel()" title="Close Templates">✕</button>
+      </div>
+
+      <!-- Category Filter Tabs -->
+      <div class="tpl-cats" id="tpl-cats-container"></div>
+
+      <!-- Search Input -->
+      <div class="tpl-search-wrap">
+        <input type="text" id="tpl-search-input" placeholder="Search templates (e.g. renal stone, gastritis)..." />
+      </div>
+
+      <!-- Templates Items List -->
+      <div class="tpl-list-content" id="tpl-items-list"></div>
+    </aside>
+
+  </div><!-- /app-container -->
+
+  <!-- ── STICKY ACTIONS BAR ────────────────────────────────────────── -->
+  <footer class="action-bar-bottom no-print">
+    <div class="action-buttons">
+      <button class="btn btn-save" id="btn-save-record" onclick="handleSavePatient()">
+        <span>💾</span> Save Record
+      </button>
+
+      <button class="btn btn-update" id="btn-update-record" onclick="handleUpdatePatient()" style="display:none;">
+        <span>🔄</span> Update Record
+      </button>
+
+      <button class="btn btn-outline" id="btn-new-visit" onclick="handleStartNewVisit()" style="display:none;">
+        <span>➕</span> New Visit
+      </button>
+
+      <button class="btn btn-preview" onclick="openPrescriptionPreview(false)">
+        <span>👁</span> Preview Prescription
+      </button>
+
+      <button class="btn btn-print" onclick="openPrescriptionPreview(true)">
+        <span>🖨</span> Print Prescription
+      </button>
+
+      <button class="btn btn-walkin" onclick="handleWalkInPrint()">
+        <span>⚡</span> Print Walk-in
+      </button>
+    </div>
+
+    <div class="action-buttons">
+      <button class="btn btn-outline" id="btn-view-history" onclick="openPatientHistoryModal()" style="display:none;">
+        <span>📋</span> Visit History
+      </button>
+
+      <button class="btn btn-outline" onclick="resetFormToNew()">
+        <span>✕</span> Clear Form
+      </button>
+    </div>
+  </footer>
+
+  <!-- ── MODAL: PRESCRIPTION PREVIEW (Exact A4 Print Layout) ───────── -->
+  <div class="modal-backdrop" id="modal-rx-preview">
+    <div class="modal-card" style="max-width:230mm;max-height:95vh;">
+      <div class="modal-header">
+        <h2>🖨 Prescription Preview — Hajra Medical Complex Jaranwala</h2>
+        <div style="display:flex;gap:10px;">
+          <button class="btn btn-print" onclick="executeDirectPrint()">🖨 Print Now</button>
+          <button class="modal-close" onclick="closePrescriptionPreview()">✕</button>
+        </div>
+      </div>
+
+      <div class="modal-body" style="padding:0;background:#525659;display:flex;justify-content:center;">
+        
+        <!-- THE A4 PRESCRIPTION SHEET -->
+        <div id="rx-a4-page">
+
+          <!-- 1. Clinic Header Banner -->
+          <img src="assets/prescription-header.png" id="rx-img-header" class="rx-header-img" alt="Hajra Medical Complex Header" />
+
+          <!-- 2. VCO Line -->
+          <div class="rx-vco-row">
+            <div class="rx-vco-sq">✓</div>
+            <span>VCO</span>
+          </div>
+
+          <!-- 3. Patient Info Table -->
+          <table class="rx-patient-table">
+            <colgroup>
+              <col style="width:14%;" />
+              <col style="width:28%;" />
+              <col style="width:9%;" />
+              <col style="width:25%;" />
+              <col style="width:7%;" />
+              <col style="width:17%;" />
+            </colgroup>
+            <tr>
+              <td class="rx-lbl">Patient Name:</td>
+              <td><span class="rx-uline" id="prx-name">&nbsp;</span></td>
+              <td class="rx-lbl" id="prx-relation-lbl" style="padding-left:2mm;">S/O:</td>
+              <td><span class="rx-uline" id="prx-parent-name">&nbsp;</span></td>
+              <td class="rx-lbl" style="padding-left:2mm;">Date:</td>
+              <td><span class="rx-uline" id="prx-date">&nbsp;</span></td>
+            </tr>
+            <tr>
+              <td class="rx-lbl">Age:</td>
+              <td colspan="2" style="white-space:nowrap;">
+                <span class="rx-uline" id="prx-age" style="display:inline-block;width:40%;">&nbsp;</span>
+                <span class="rx-lbl" style="padding-left:2mm;">Gender:</span>
+                <span class="rx-uline" id="prx-gender" style="display:inline-block;width:35%;">&nbsp;</span>
+              </td>
+              <td>
+                <span class="rx-lbl">Ref No:</span>
+                <span class="rx-uline" id="prx-refno" style="display:inline-block;width:60%;">&nbsp;</span>
+              </td>
+              <td class="rx-lbl" style="padding-left:2mm;">Visit:</td>
+              <td><span class="rx-uline" id="prx-visit">&nbsp;</span></td>
+            </tr>
+            <tr>
+              <td class="rx-lbl">Address:</td>
+              <td colspan="3"><span class="rx-uline" id="prx-address">&nbsp;</span></td>
+              <td class="rx-lbl" style="padding-left:2mm;">Contact:</td>
+              <td><span class="rx-uline" id="prx-phone">&nbsp;</span></td>
+            </tr>
+          </table>
+
+          <!-- 4. Two-Column Body -->
+          <div class="rx-main-body">
+
+            <!-- Left Column: Allergies / Complaints / Findings / Comments / Investigations -->
+            <div class="rx-col-left">
+              <div class="rx-sec">
+                <span class="rx-sec-title">Allergies:</span>
+                <div class="rx-sec-body" id="prx-allergy"></div>
+              </div>
+              <div class="rx-sec">
+                <span class="rx-sec-title">P/Complaints & History:</span>
+                <div class="rx-sec-body" id="prx-symptoms"></div>
+              </div>
+              <div class="rx-sec">
+                <span class="rx-sec-title">Findings:</span>
+                <div class="rx-sec-body" id="prx-findings"></div>
+              </div>
+              <div class="rx-sec">
+                <span class="rx-sec-title">Comments:</span>
+                <div class="rx-sec-body" id="prx-comments"></div>
+              </div>
+              <div class="rx-sec" style="border-bottom:none;">
+                <span class="rx-sec-title">Investigations:</span>
+                <div class="rx-sec-body" id="prx-investigations"></div>
+              </div>
+            </div>
+
+            <!-- Right Column: Vitals / Diagnosis / Rx / Signature -->
+            <div class="rx-col-right">
+
+              <!-- Vitals strip -->
+              <div class="rx-vitals-strip">
+                <div class="rx-vital-col">Temp<span class="rx-vital-val" id="prx-temp"></span></div>
+                <div class="rx-vital-col">B.P<span class="rx-vital-val" id="prx-bp"></span></div>
+                <div class="rx-vital-col">R.R<span class="rx-vital-val" id="prx-rr"></span></div>
+                <div class="rx-vital-col">Pulse<span class="rx-vital-val" id="prx-pulse"></span></div>
+                <div class="rx-vital-col">Weight<span class="rx-vital-val" id="prx-weight"></span></div>
+              </div>
+
+              <!-- Diagnosis area -->
+              <div class="rx-diag-box">
+                <span class="rx-diag-title">Provisional/Diagnosis:</span>
+                <div class="rx-diag-content" id="prx-diagnosis"></div>
+              </div>
+
+              <!-- Rx area -->
+              <div class="rx-treatment-area">
+                <div class="rx-sign-symbol">Rx</div>
+                <div class="rx-treatment-content" id="prx-treatment"></div>
+              </div>
+
+              <!-- Doctor signature -->
+              <div class="rx-signature-block">
+                Dr. Hafiz Ehsan Qadeer<br />
+                <span>M.B.B.S. (PB) · Family Physician</span>
+              </div>
+
+            </div>
+
+          </div><!-- /rx-main-body -->
+
+          <!-- 5. Urdu Patient Consent Box -->
+          <div class="rx-consent-box">
+            <div class="rx-consent-item">
+              میں علاج کی غرض سے کلینک آئی/آیا ہوں ۔ اس سلسلے میں معائنہ/تشخیص کے لیے درکار کارروائی اور علاج کی اجازت دیتا/دیتی ہوں اور میرے والدین/ورثان
+            </div>
+            <div class="rx-consent-item">
+              کسی بھی پیچیدگی آنے کی صورت میں، کلینک عملہ یا ڈاکٹر کو ذمہ دار نہ سمجھوں گا/گی۔ اگر مجھے ریفر کیا جائے، مجھے کوئی اعتراض نہیں ہوگا۔
+            </div>
+          </div>
+
+          <!-- 6. Footer strip -->
+          <div class="rx-footer-strip">
+            <div class="rx-footer-col">Revisit After: <span id="prx-revisit"></span> Days</div>
+            <div class="rx-footer-col">Contact Number: <strong>041-4711753 / 0313-6530553</strong></div>
+            <div class="rx-footer-col">Timings: Daily, 10:00AM till Sunset</div>
+          </div>
+
+        </div><!-- /rx-a4-page -->
+
+      </div>
+    </div>
+  </div>
+
+  <!-- ── MODAL: APPOINTMENTS & QUEUE MANAGER ───────────────────────── -->
+  <div class="modal-backdrop" id="modal-appointments">
+    <div class="modal-card">
+      <div class="modal-header">
+        <h2>📅 Appointment Scheduling & Token Queue</h2>
+        <button class="modal-close" onclick="closeModals()">✕</button>
+      </div>
+
+      <div class="modal-body">
+        <!-- Date Bar & Queue Stats -->
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
+          <div style="display:flex;align-items:center;gap:8px;">
+            <label style="font-weight:700;">Date:</label>
+            <input type="date" id="appt-filter-date" onchange="_apptViewDate=this.value;renderAppointmentsQueue();" style="padding:6px 10px;border:1px solid var(--border);border-radius:4px;" />
+          </div>
+
+          <div style="display:flex;gap:12px;">
+            <div class="stat-item" style="padding:6px 12px;"><span style="font-weight:700;" id="appt-stat-total">0</span>&nbsp;Total</div>
+            <div class="stat-item" style="padding:6px 12px;background:var(--amber-subtle);"><span style="font-weight:700;color:var(--amber);" id="appt-stat-waiting">0</span>&nbsp;Waiting</div>
+            <div class="stat-item" style="padding:6px 12px;background:var(--green-subtle);"><span style="font-weight:700;color:var(--green);" id="appt-stat-seen">0</span>&nbsp;Seen</div>
+            <div class="stat-item" style="padding:6px 12px;background:var(--teal-subtle);"><span style="font-weight:700;color:var(--teal);" id="appt-stat-next">—</span>&nbsp;Next</div>
+          </div>
+        </div>
+
+        <!-- Now Serving Banner -->
+        <div id="appt-now-serving-banner" style="background:var(--teal);color:#fff;padding:16px 20px;border-radius:var(--radius-md);margin-bottom:16px;display:none;align-items:center;"></div>
+
+        <!-- Queue Grid (Add Form on Left, Queue List on Right) -->
+        <div style="display:grid;grid-template-columns:1fr 1.6fr;gap:20px;">
+          
+          <!-- Add Appointment Form -->
+          <div style="background:#F8FAFC;border:1px solid var(--border);border-radius:var(--radius-md);padding:16px;">
+            <h3 style="font-size:14px;font-weight:700;margin-bottom:12px;color:var(--navy);">➕ Register New Appointment</h3>
+            <form id="form-add-appt" onsubmit="handleAddAppointment(event)">
+              <div class="form-group" style="margin-bottom:10px;">
+                <label>Patient Name *</label>
+                <input type="text" id="appt-new-name" placeholder="Patient name" required />
+              </div>
+              <div class="form-group" style="margin-bottom:10px;">
+                <label>Phone Number (for WhatsApp)</label>
+                <input type="text" id="appt-new-phone" placeholder="03XXXXXXXXX" />
+              </div>
+              <div class="form-group" style="margin-bottom:10px;">
+                <label>Scheduled Time</label>
+                <input type="time" id="appt-new-time" />
+              </div>
+              <div class="form-group" style="margin-bottom:10px;">
+                <label>Visit Type</label>
+                <select id="appt-new-type">
+                  <option value="Consultation">Consultation</option>
+                  <option value="Follow-up">Follow-up</option>
+                  <option value="Emergency">Emergency</option>
+                  <option value="Procedure">Procedure</option>
+                  <option value="Ultrasound">Ultrasound</option>
+                </select>
+              </div>
+              <div class="form-group" style="margin-bottom:14px;">
+                <label>Notes</label>
+                <input type="text" id="appt-new-notes" placeholder="Optional notes" />
+              </div>
+              <button type="submit" class="btn btn-save" style="width:100%;">Add to Queue</button>
+            </form>
+          </div>
+
+          <!-- Queue List -->
+          <div>
+            <h3 style="font-size:14px;font-weight:700;margin-bottom:12px;color:var(--navy);">Daily Patient Queue</h3>
+            <div id="appt-queue-list" style="max-height:420px;overflow-y:auto;"></div>
+          </div>
+
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+  <!-- ── MODAL: BILLING & PAYMENT RECEIPTS ────────────────────────── -->
+  <div class="modal-backdrop" id="modal-billing">
+    <div class="modal-card">
+      <div class="modal-header">
+        <h2>💳 Patient Billing & Receipts</h2>
+        <button class="modal-close" onclick="closeModals()">✕</button>
+      </div>
+
+      <div class="modal-body">
+        <div class="form-row" style="grid-template-columns:1fr 1fr 1fr 1.5fr;">
+          <div class="form-group">
+            <label>Receipt No</label>
+            <input type="text" id="pay-receipt-no" readonly style="font-weight:700;color:var(--teal);" />
+          </div>
+          <div class="form-group">
+            <label>Date</label>
+            <input type="date" id="pay-date" />
+          </div>
+          <div class="form-group">
+            <label>MR Number</label>
+            <input type="text" id="pay-mr" readonly />
+          </div>
+          <div class="form-group">
+            <label>Patient Name</label>
+            <input type="text" id="pay-name" readonly style="font-weight:600;" />
+          </div>
+        </div>
+
+        <div style="background:#F8FAFC;border:1px solid var(--border);border-radius:var(--radius-md);padding:16px;margin:16px 0;">
+          <h3 style="font-size:13.5px;font-weight:700;margin-bottom:12px;color:var(--navy);">Charges Breakdown (PKR)</h3>
+          
+          <div class="form-row" style="grid-template-columns:repeat(auto-fit, minmax(130px, 1fr));">
+            <div class="form-group">
+              <label>Consultation Fee</label>
+              <input type="number" id="pay-consult" placeholder="0" oninput="calculateBillingTotals()" />
+            </div>
+            <div class="form-group">
+              <label>Procedure</label>
+              <input type="number" id="pay-proc" placeholder="0" oninput="calculateBillingTotals()" />
+            </div>
+            <div class="form-group">
+              <label>Lab Tests</label>
+              <input type="number" id="pay-lab" placeholder="0" oninput="calculateBillingTotals()" />
+            </div>
+            <div class="form-group">
+              <label>Imaging / USG</label>
+              <input type="number" id="pay-img" placeholder="0" oninput="calculateBillingTotals()" />
+            </div>
+            <div class="form-group">
+              <label>Medicines</label>
+              <input type="number" id="pay-med" placeholder="0" oninput="calculateBillingTotals()" />
+            </div>
+            <div class="form-group">
+              <label>Other Charges</label>
+              <input type="number" id="pay-other" placeholder="0" oninput="calculateBillingTotals()" />
+            </div>
+            <div class="form-group">
+              <label>Discount</label>
+              <input type="number" id="pay-discount" placeholder="0" oninput="calculateBillingTotals()" />
+            </div>
+          </div>
+
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-top:14px;padding-top:14px;border-top:1px dashed var(--border);">
+            <div>Total: <strong id="pay-disp-total" style="font-size:16px;color:var(--navy);">Rs. 0</strong></div>
+            <div>Balance Due: <strong id="pay-disp-balance" style="font-size:16px;color:var(--red);">Rs. 0</strong></div>
+          </div>
+        </div>
+
+        <div class="form-row" style="grid-template-columns:1fr 1fr 2fr;">
+          <div class="form-group">
+            <label>Amount Received *</label>
+            <input type="number" id="pay-received" placeholder="0" oninput="calculateBillingTotals()" style="font-weight:700;color:var(--green);" />
+          </div>
+          <div class="form-group">
+            <label>Payment Method</label>
+            <select id="pay-method">
+              <option value="Cash">Cash</option>
+              <option value="JazzCash">JazzCash</option>
+              <option value="EasyPaisa">EasyPaisa</option>
+              <option value="Bank Transfer">Bank Transfer</option>
+              <option value="Credit / Debit Card">Credit / Debit Card</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Remarks</label>
+            <input type="text" id="pay-remarks" placeholder="Optional payment note" />
+          </div>
+        </div>
+
+        <input type="hidden" id="pay-visit" />
+      </div>
+
+      <div class="modal-footer">
+        <button class="btn btn-save" onclick="handleSavePayment()">💾 Save & Print Receipt</button>
+        <button class="btn btn-outline" onclick="closeModals()">Close</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── MODAL: PAYMENT RECEIPT PREVIEW (Thermal / A5 Friendly) ───── -->
+  <div class="modal-backdrop" id="modal-receipt-preview">
+    <div class="modal-card" style="max-width:480px;">
+      <div class="modal-header">
+        <h2>🧾 Payment Receipt</h2>
+        <button class="modal-close" onclick="closeModals()">✕</button>
+      </div>
+
+      <div class="modal-body" style="padding:24px;background:#fff;font-family:Calibri,sans-serif;">
+        <!-- Header -->
+        <div style="text-align:center;border-bottom:2px solid var(--navy);padding-bottom:10px;margin-bottom:12px;">
+          <h2 style="font-size:18px;color:var(--navy);font-weight:800;letter-spacing:0.5px;">HAJRA MEDICAL COMPLEX</h2>
+          <div style="font-size:11px;color:#555;">Adda Jhaal, Faisalabad Road, Jaranwala</div>
+          <div style="font-size:11px;color:#555;">Cell #: 041-4711753 / 0313-6530553</div>
+          <div style="font-size:10.5px;color:var(--teal);font-weight:700;margin-top:2px;">PMDC Reg: 98762-P · PHC Reg: 2025/92172</div>
+          <div style="font-size:12px;font-weight:700;background:var(--teal);color:#fff;padding:3px;margin-top:6px;text-transform:uppercase;">Payment Receipt</div>
+        </div>
+
+        <!-- Meta -->
+        <div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:10px;">
+          <div>Receipt No: <strong id="rcp-no">—</strong></div>
+          <div>Date: <strong id="rcp-date">—</strong></div>
+        </div>
+
+        <div style="font-size:12px;margin-bottom:10px;background:#F8FAFC;padding:8px;border-radius:4px;">
+          <div>Patient: <strong id="rcp-name">—</strong></div>
+          <div>MR No: <strong id="rcp-mr">—</strong> &nbsp;|&nbsp; Visit #: <strong id="rcp-visit">—</strong></div>
+        </div>
+
+        <!-- Table -->
+        <table style="width:100%;border-collapse:collapse;font-size:12px;margin-bottom:12px;">
+          <tr><td style="padding:4px 0;">Consultation Fee</td><td style="text-align:right;" id="rcp-consult">—</td></tr>
+          <tr><td style="padding:4px 0;">Procedure Charges</td><td style="text-align:right;" id="rcp-proc">—</td></tr>
+          <tr><td style="padding:4px 0;">Lab Investigations</td><td style="text-align:right;" id="rcp-lab">—</td></tr>
+          <tr><td style="padding:4px 0;">Imaging / USG</td><td style="text-align:right;" id="rcp-img">—</td></tr>
+          <tr><td style="padding:4px 0;">Other Charges</td><td style="text-align:right;" id="rcp-other">—</td></tr>
+          <tr><td style="padding:4px 0;color:var(--amber);">Discount</td><td style="text-align:right;color:var(--amber);" id="rcp-discount">—</td></tr>
+          <tr style="border-top:1.5px solid var(--navy);font-weight:700;font-size:13px;">
+            <td style="padding:6px 0;">Total Amount</td><td style="text-align:right;" id="rcp-total">—</td>
+          </tr>
+          <tr style="color:var(--green);font-weight:700;">
+            <td style="padding:4px 0;">Amount Received</td><td style="text-align:right;" id="rcp-received">—</td>
+          </tr>
+          <tr style="color:var(--red);font-weight:700;">
+            <td style="padding:4px 0;">Balance</td><td style="text-align:right;" id="rcp-balance">—</td>
+          </tr>
+        </table>
+
+        <div style="font-size:11px;color:#555;margin-bottom:16px;">
+          Payment Method: <span class="method-badge" id="rcp-method">Cash</span>
+        </div>
+
+        <div style="text-align:center;border-top:1px dashed #ccc;padding-top:10px;font-size:11px;color:#666;">
+          Thank you for choosing Hajra Medical Complex.<br />
+          We wish you a speedy recovery!
+        </div>
+      </div>
+
+      <div class="modal-footer">
+        <button class="btn btn-print" onclick="window.print()">🖨 Print Receipt</button>
+        <button class="btn btn-outline" onclick="closeModals()">Close</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── MODAL: VISIT HISTORY ─────────────────────────────────────── -->
+  <div class="modal-backdrop" id="modal-patient-history">
+    <div class="modal-card">
+      <div class="modal-header">
+        <h2 id="history-patient-title">Patient Visit History</h2>
+        <button class="modal-close" onclick="closeModals()">✕</button>
+      </div>
+      <div class="modal-body" id="history-visits-container"></div>
+    </div>
+  </div>
+
+  <!-- ── MODAL: DATABASE PASSWORD AUTH ────────────────────────────── -->
+  <div class="modal-backdrop" id="modal-db-auth">
+    <div class="modal-card" style="max-width:380px;">
+      <div class="modal-header">
+        <h2>🔒 Database Access</h2>
+        <button class="modal-close" onclick="closeModals()">✕</button>
+      </div>
+      <div class="modal-body" style="text-align:center;padding:24px;">
+        <p style="font-size:13px;color:var(--text-muted);margin-bottom:16px;">Enter clinic password to access database management and backup.</p>
+        <input type="password" id="db-auth-input" placeholder="Enter password (default: 1234)" style="width:100%;padding:10px;border:1.5px solid var(--border);border-radius:6px;font-size:14px;margin-bottom:8px;outline:none;" onkeydown="if(event.key==='Enter')verifyDatabasePassword()" />
+        <div id="db-auth-error" style="color:var(--red);font-size:12px;margin-bottom:12px;min-height:16px;"></div>
+        <button class="btn btn-save" style="width:100%;" onclick="verifyDatabasePassword()">Unlock Database</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── MODAL: DATABASE MANAGEMENT & BACKUP ──────────────────────── -->
+  <div class="modal-backdrop" id="modal-db-manager">
+    <div class="modal-card" style="max-width:600px;">
+      <div class="modal-header">
+        <h2>💾 Database Backup & Management</h2>
+        <button class="modal-close" onclick="closeModals()">✕</button>
+      </div>
+      <div class="modal-body">
+        <div style="background:var(--teal-subtle);border:1px solid var(--teal-border);border-radius:var(--radius-md);padding:14px;margin-bottom:20px;">
+          <h3 style="font-size:14px;font-weight:700;color:var(--teal);">Database Health Status</h3>
+          <div style="font-size:12.5px;color:var(--navy);margin-top:4px;" id="db-rec-count">Loading...</div>
+          <div style="font-size:11.5px;color:var(--text-muted);margin-top:2px;">Offline IndexedDB is active and synced.</div>
+        </div>
+
+        <div style="display:flex;flex-direction:column;gap:12px;">
+          <div style="border:1px solid var(--border);border-radius:var(--radius-md);padding:14px;display:flex;justify-content:space-between;align-items:center;">
+            <div>
+              <div style="font-weight:700;font-size:13px;">Export Database Backup (JSON)</div>
+              <div style="font-size:11.5px;color:var(--text-muted);">Complete backup of all patients, visits, appointments, and payments.</div>
+            </div>
+            <button class="btn btn-save" onclick="handleExportDatabaseJSON()">⬇ Export JSON</button>
+          </div>
+
+          <div style="border:1px solid var(--border);border-radius:var(--radius-md);padding:14px;display:flex;justify-content:space-between;align-items:center;">
+            <div>
+              <div style="font-weight:700;font-size:13px;">Export Patient Records (CSV / Excel)</div>
+              <div style="font-size:11.5px;color:var(--text-muted);">Spreadsheet export compatible with Microsoft Excel & Google Sheets.</div>
+            </div>
+            <button class="btn btn-outline" onclick="handleExportPatientsCSV()">📊 Export CSV</button>
+          </div>
+
+          <div style="border:1px solid var(--border);border-radius:var(--radius-md);padding:14px;display:flex;justify-content:space-between;align-items:center;">
+            <div>
+              <div style="font-weight:700;font-size:13px;">Restore / Import Database (JSON)</div>
+              <div style="font-size:11.5px;color:var(--text-muted);">Restore patients from a previously saved JSON backup file.</div>
+            </div>
+            <label class="btn btn-walkin" style="cursor:pointer;margin:0;">
+              ⬆ Import JSON
+              <input type="file" accept=".json" style="display:none;" onchange="handleImportDatabase(event)" />
+            </label>
+          </div>
+
+          <div style="text-align:right;margin-top:10px;">
+            <button class="btn btn-outline" style="font-size:12px;" onclick="handleChangePassword()">🔑 Change Access Password</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- SCRIPTS -->
+  <script src="assets/images-base64.js"></script>
+  <script src="js/templates-data.js"></script>
+  <script src="js/db.js"></script>
+  <script src="js/app.js"></script>
+
+</body>
+</html>

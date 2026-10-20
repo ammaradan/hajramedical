@@ -1,0 +1,286 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<title>Receipt — Dr. Akram Clinic</title>
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: "Calibri","Segoe UI",Arial,sans-serif; background: #e8e8e8; font-size: 11pt; }
+
+/* ── ACTION BAR ── */
+#action-bar {
+  background: #0B1D3A; color: #fff;
+  padding: 10px 20px; display: flex; align-items: center; gap: 10px;
+  position: fixed; top: 0; left: 0; right: 0; z-index: 100;
+}
+#action-bar h2 { flex: 1; font-size: 14px; font-weight: 600; }
+.abtn { padding: 7px 18px; border: none; border-radius: 5px; font-size: 13px; font-weight: 600; cursor: pointer; }
+.abtn-print { background: #1A8C7B; color: #fff; }
+.abtn-close { background: rgba(255,255,255,.15); color: #fff; border: 1px solid rgba(255,255,255,.3); }
+
+/* ── PAGE WRAPPER ── */
+#page-wrap { display:flex; justify-content:center; padding: 72px 0 40px; }
+
+/* ── RECEIPT CARD (A5-ish, thermal-friendly) ── */
+.receipt-page {
+  background: #fff;
+  width: 148mm;
+  min-height: 200mm;
+  padding: 0;
+  box-shadow: 0 4px 32px rgba(0,0,0,.18);
+  display: flex; flex-direction: column;
+}
+
+/* ── HEADER BAND ── */
+.rcp-header {
+  background: #0B1D3A; color: #fff;
+  padding: 14px 18px 12px;
+  text-align: center;
+}
+.rcp-clinic-name {
+  font-size: 16pt; font-weight: 700; letter-spacing: .5px;
+}
+.rcp-clinic-sub {
+  font-size: 8.5pt; opacity: .80; margin-top: 3px; letter-spacing: .3px;
+}
+.rcp-clinic-contact {
+  font-size: 8pt; opacity: .70; margin-top: 4px;
+}
+
+/* ── GREEN BAND ── */
+.rcp-title-band {
+  background: #1A8C7B; color: #fff;
+  text-align: center; padding: 5px 0;
+  font-size: 10pt; font-weight: 700; letter-spacing: 1.5px;
+  text-transform: uppercase;
+}
+
+/* ── BODY ── */
+.rcp-body { padding: 14px 18px; flex: 1; }
+
+/* Meta row: Receipt No + Date */
+.rcp-meta { display: flex; justify-content: space-between; margin-bottom: 12px; }
+.rcp-meta-item { font-size: 8.5pt; color: #555; }
+.rcp-meta-item strong { color: #0B1D3A; font-size: 9pt; }
+
+/* Section label */
+.rcp-section-label {
+  font-size: 7.5pt; font-weight: 700; text-transform: uppercase;
+  letter-spacing: .8px; color: #888; border-bottom: 1px solid #ddd;
+  padding-bottom: 3px; margin: 10px 0 7px;
+}
+
+/* Patient info grid */
+.rcp-pt-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 4px 12px; }
+.rcp-pt-row  { font-size: 8.5pt; }
+.rcp-pt-row  span { color: #777; }
+.rcp-pt-row  strong { color: #0B1D3A; }
+
+/* Charges table */
+.rcp-table { width: 100%; border-collapse: collapse; margin-top: 4px; }
+.rcp-table td { font-size: 8.5pt; padding: 4px 2px; vertical-align: top; }
+.rcp-table td:last-child { text-align: right; font-weight: 600; color: #1A3A2A; }
+.rcp-table .rcp-divider td { border-top: 1px solid #ddd; }
+.rcp-table .rcp-discount td { color: #B45309; }
+.rcp-table .rcp-total-row td {
+  border-top: 2px solid #0B1D3A; font-size: 10pt;
+  font-weight: 700; color: #0B1D3A; padding-top: 6px;
+}
+.rcp-table .rcp-received-row td { color: #1A8C7B; font-weight: 700; }
+.rcp-table .rcp-balance-row  td { color: #C53030; font-weight: 700; }
+
+/* Payment method badge */
+.rcp-method {
+  display: inline-block; margin-top: 8px;
+  background: #EAF6F4; color: #1A6B5E; border: 1px solid #B2DFDB;
+  border-radius: 20px; padding: 3px 12px; font-size: 8pt; font-weight: 700;
+}
+
+/* Remarks */
+.rcp-remarks { font-size: 8pt; color: #555; margin-top: 6px; font-style: italic; }
+
+/* ── FOOTER ── */
+.rcp-footer {
+  border-top: 1px dashed #bbb; margin: 0 18px;
+  padding: 10px 0 14px;
+}
+.rcp-thankyou {
+  text-align: center; font-size: 8.5pt; color: #444;
+  font-style: italic; margin-bottom: 10px;
+}
+.rcp-sig-row {
+  display: flex; justify-content: space-between; margin-top: 18px;
+}
+.rcp-sig-box { text-align: center; width: 46%; }
+.rcp-sig-line { border-top: 1px solid #888; padding-top: 4px; font-size: 7.5pt; color: #666; }
+
+/* ── PRINT STYLES ── */
+@media print {
+  * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  #action-bar { display: none !important; }
+  body { background: white !important; }
+  #page-wrap { padding: 0 !important; margin: 0 !important; display: block; }
+  .receipt-page {
+    box-shadow: none;
+    width: 100%;
+    min-height: auto;
+    page-break-inside: avoid;
+  }
+}
+</style>
+</head>
+<body>
+
+<div id="action-bar">
+  <h2>💳 Payment Receipt — Dr. Akram Clinic</h2>
+  <button class="abtn abtn-print" onclick="window.print()">🖨 Print Receipt</button>
+  <button class="abtn abtn-close" onclick="window.close()">✕ Close</button>
+</div>
+
+<div id="page-wrap">
+  <div class="receipt-page" id="receipt-card">
+
+    <!-- HEADER -->
+    <div class="rcp-header">
+      <div class="rcp-clinic-name">Dr. Akram Clinic</div>
+      <div class="rcp-clinic-sub">Tandlianwala, District Faisalabad</div>
+      <div class="rcp-clinic-contact">📞 &nbsp;Contact: Clinic Reception</div>
+    </div>
+
+    <div class="rcp-title-band">Payment Receipt</div>
+
+    <!-- BODY -->
+    <div class="rcp-body">
+
+      <!-- Meta -->
+      <div class="rcp-meta">
+        <div class="rcp-meta-item">Receipt No: <strong id="r-rno">—</strong></div>
+        <div class="rcp-meta-item">Date: <strong id="r-date">—</strong></div>
+      </div>
+
+      <!-- Patient Info -->
+      <div class="rcp-section-label">Patient Information</div>
+      <div class="rcp-pt-grid">
+        <div class="rcp-pt-row"><span>Name: </span><strong id="r-name">—</strong></div>
+        <div class="rcp-pt-row"><span>MR No: </span><strong id="r-mr">—</strong></div>
+        <div class="rcp-pt-row"><span>Visit No: </span><strong id="r-visit">—</strong></div>
+      </div>
+
+      <!-- Charges -->
+      <div class="rcp-section-label">Charges Breakdown</div>
+      <table class="rcp-table">
+        <tr id="r-consult-row"><td>Consultation Fee</td><td id="r-consult">—</td></tr>
+        <tr id="r-proc-row"><td>Procedure Charges</td><td id="r-proc">—</td></tr>
+        <tr id="r-invest-row"><td>Investigation Charges</td><td id="r-invest">—</td></tr>
+        <tr id="r-other-row"><td>Other Charges</td><td id="r-other">—</td></tr>
+        <tr class="rcp-divider rcp-discount" id="r-disc-row"><td>Discount</td><td id="r-disc">—</td></tr>
+        <tr class="rcp-total-row"><td>Total Amount</td><td id="r-total">—</td></tr>
+        <tr class="rcp-received-row"><td>Amount Received</td><td id="r-received">—</td></tr>
+        <tr class="rcp-balance-row"><td>Remaining Balance</td><td id="r-balance">—</td></tr>
+      </table>
+
+      <div>
+        <span class="rcp-method" id="r-method">Cash</span>
+      </div>
+
+      <div class="rcp-remarks" id="r-remarks-wrap" style="display:none">
+        Remarks: <span id="r-remarks"></span>
+      </div>
+
+    </div>
+    <!-- /body -->
+
+    <!-- FOOTER -->
+    <div class="rcp-footer">
+      <div class="rcp-thankyou">Thank you for choosing Dr. Akram Clinic.<br/>We wish you a speedy recovery.</div>
+      <div class="rcp-sig-row">
+        <div class="rcp-sig-box">
+          <div class="rcp-sig-line">Clinic Stamp</div>
+        </div>
+        <div class="rcp-sig-box">
+          <div class="rcp-sig-line">Authorized Signature</div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<script>
+/* ══════════════════════════════════════════════════
+   DATA INJECTED SERVER-SIDE BY GAS TEMPLATE ENGINE
+   receiptJson is set in Code.gs doGet()
+   using HtmlService.createTemplateFromFile()
+══════════════════════════════════════════════════ */
+
+// GAS replaces this before sending to browser (identical pattern to PrintTemplate.html)
+var _receiptJson = '<?= receiptJson ?>';
+
+function pkr(n){ return 'Rs. ' + Number(n||0).toLocaleString(); }
+function hideRow(id){ var el=document.getElementById(id); if(el) el.style.display='none'; }
+function setText(id, val){ var el=document.getElementById(id); if(el) el.textContent=val||''; }
+
+function renderReceipt(p) {
+  setText('r-rno',   p.receiptNo);
+  setText('r-date',  p.date);
+  setText('r-name',  p.patientName);
+  setText('r-mr',    p.mrNumber);
+  setText('r-visit', p.visitNo);
+
+  var cf = Number(p.consultFee)  || 0;
+  var pr = Number(p.procedure)   || 0;
+  var iv = Number(p.invest)      || 0;
+  var ot = Number(p.other)       || 0;
+  var dc = Number(p.discount)    || 0;
+  var ar = Number(p.amtReceived) || 0;
+  var tt = Number(p.total)       || (cf + pr + iv + ot - dc);
+  var bl = Number(p.balance)     || (tt - ar);
+
+  if (!cf) hideRow('r-consult-row'); else setText('r-consult', pkr(cf));
+  if (!pr) hideRow('r-proc-row');    else setText('r-proc',    pkr(pr));
+  if (!iv) hideRow('r-invest-row');  else setText('r-invest',  pkr(iv));
+  if (!ot) hideRow('r-other-row');   else setText('r-other',   pkr(ot));
+  if (!dc) hideRow('r-disc-row');    else setText('r-disc',    '(−' + pkr(dc) + ')');
+
+  setText('r-total',    pkr(tt));
+  setText('r-received', pkr(ar));
+  setText('r-balance',  pkr(bl));
+  setText('r-method',   p.payMethod || 'Cash');
+
+  if (p.remarks && p.remarks.trim()) {
+    var rw = document.getElementById('r-remarks-wrap');
+    if (rw) rw.style.display = '';
+    setText('r-remarks', p.remarks);
+  }
+}
+
+window.addEventListener('DOMContentLoaded', function() {
+
+  // PRIMARY: server-injected data (GAS template) — same as PrintTemplate.html
+  if (_receiptJson &&
+      _receiptJson !== 'null' &&
+      _receiptJson !== '<?= receiptJson ?>') {
+    try {
+      renderReceipt(JSON.parse(_receiptJson));
+      return;
+    } catch(e) {
+      console.error('Receipt data parse error:', e);
+    }
+  }
+
+  // FALLBACK: postMessage (if opened outside GAS context)
+  window.addEventListener('message', function(e) {
+    if (e.data && e.data.type === 'RECEIPT_DATA') {
+      renderReceipt(e.data.payload);
+    }
+  });
+  try {
+    if (window.opener && !window.opener.closed) {
+      window.opener.postMessage({ type: 'RECEIPT_READY' }, '*');
+    }
+  } catch(e) {}
+
+});
+</script>
+</body>
+</html>

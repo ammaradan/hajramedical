@@ -1,0 +1,21 @@
+{
+  "name": "hajramedical",
+  "version": "1.0.0",
+  "description": "Patient & Clinical Management System for Hajra Medical Complex, Jaranwala - Dr. Hafiz Ehsan Qadeer",
+  "main": "index.html",
+  "scripts": {
+    "dev": "npx -y serve -l 3000 .",
+    "start": "npx -y serve -l 3000 ."
+  },
+  "keywords": [
+    "clinic",
+    "hospital",
+    "prescription",
+    "patient-records",
+    "billing",
+    "appointments",
+    "jaranwala"
+  ],
+  "author": "Ammar Sadiq",
+  "license": "MIT"
+}

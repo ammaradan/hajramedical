@@ -1,0 +1,9 @@
+node_modules/
+.DS_Store
+Thumbs.db
+*.log
+inspect_ref.py
+inspect_ref.js
+check_backend.js
+find_templates.js
+make_assets.js

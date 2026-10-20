@@ -1,0 +1,242 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Prescription — Hajra Medical Complex Jaranwala</title>
+  <link rel="stylesheet" href="css/print.css" />
+  <style>
+    /* Action bar for screen view */
+    #action-bar {
+      background: #0D2B45;
+      color: #fff;
+      padding: 10px 20px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      position: fixed;
+      top: 0; left: 0; right: 0;
+      z-index: 1000;
+    }
+    #action-bar h2 {
+      flex: 1;
+      font-size: 14px;
+      font-weight: 700;
+      font-family: 'Segoe UI', sans-serif;
+    }
+    .abtn {
+      padding: 7px 18px;
+      border: none;
+      border-radius: 5px;
+      font-size: 13px;
+      font-weight: 700;
+      cursor: pointer;
+    }
+    .abtn-print { background: #008060; color: #fff; }
+    .abtn-close { background: rgba(255,255,255,0.15); color: #fff; border: 1px solid rgba(255,255,255,0.3); }
+    #page-wrap {
+      padding-top: 70px;
+      display: flex;
+      justify-content: center;
+      background: #525659;
+      min-height: 100vh;
+    }
+    @media print {
+      #action-bar { display: none !important; }
+      #page-wrap { padding: 0 !important; background: white !important; }
+    }
+  </style>
+</head>
+<body>
+
+  <div id="action-bar" class="no-print">
+    <h2>🖨 Prescription Preview — Hajra Medical Complex Jaranwala</h2>
+    <button class="abtn abtn-print" onclick="window.print()">🖨 Print</button>
+    <button class="abtn abtn-close" onclick="window.close()">✕ Close</button>
+  </div>
+
+  <div id="page-wrap">
+    <div id="rx-a4-page">
+
+      <!-- Header Banner -->
+      <img src="assets/prescription-header.png" id="rx-img-header" class="rx-header-img" alt="Hajra Medical Complex" />
+
+      <!-- VCO Line -->
+      <div class="rx-vco-row">
+        <div class="rx-vco-sq">✓</div>
+        <span>VCO</span>
+      </div>
+
+      <!-- Patient Info Table -->
+      <table class="rx-patient-table">
+        <colgroup>
+          <col style="width:14%;" />
+          <col style="width:28%;" />
+          <col style="width:9%;" />
+          <col style="width:25%;" />
+          <col style="width:7%;" />
+          <col style="width:17%;" />
+        </colgroup>
+        <tr>
+          <td class="rx-lbl">Patient Name:</td>
+          <td><span class="rx-uline" id="prx-name">&nbsp;</span></td>
+          <td class="rx-lbl" id="prx-relation-lbl" style="padding-left:2mm;">S/O:</td>
+          <td><span class="rx-uline" id="prx-parent-name">&nbsp;</span></td>
+          <td class="rx-lbl" style="padding-left:2mm;">Date:</td>
+          <td><span class="rx-uline" id="prx-date">&nbsp;</span></td>
+        </tr>
+        <tr>
+          <td class="rx-lbl">Age:</td>
+          <td colspan="2" style="white-space:nowrap;">
+            <span class="rx-uline" id="prx-age" style="display:inline-block;width:40%;">&nbsp;</span>
+            <span class="rx-lbl" style="padding-left:2mm;">Gender:</span>
+            <span class="rx-uline" id="prx-gender" style="display:inline-block;width:35%;">&nbsp;</span>
+          </td>
+          <td>
+            <span class="rx-lbl">Ref No:</span>
+            <span class="rx-uline" id="prx-refno" style="display:inline-block;width:60%;">&nbsp;</span>
+          </td>
+          <td class="rx-lbl" style="padding-left:2mm;">Visit:</td>
+          <td><span class="rx-uline" id="prx-visit">&nbsp;</span></td>
+        </tr>
+        <tr>
+          <td class="rx-lbl">Address:</td>
+          <td colspan="3"><span class="rx-uline" id="prx-address">&nbsp;</span></td>
+          <td class="rx-lbl" style="padding-left:2mm;">Contact:</td>
+          <td><span class="rx-uline" id="prx-phone">&nbsp;</span></td>
+        </tr>
+      </table>
+
+      <!-- Two-Column Body -->
+      <div class="rx-main-body">
+
+        <!-- Left Column -->
+        <div class="rx-col-left">
+          <div class="rx-sec">
+            <span class="rx-sec-title">Allergies:</span>
+            <div class="rx-sec-body" id="prx-allergy"></div>
+          </div>
+          <div class="rx-sec">
+            <span class="rx-sec-title">P/Complaints & History:</span>
+            <div class="rx-sec-body" id="prx-symptoms"></div>
+          </div>
+          <div class="rx-sec">
+            <span class="rx-sec-title">Findings:</span>
+            <div class="rx-sec-body" id="prx-findings"></div>
+          </div>
+          <div class="rx-sec">
+            <span class="rx-sec-title">Comments:</span>
+            <div class="rx-sec-body" id="prx-comments"></div>
+          </div>
+          <div class="rx-sec" style="border-bottom:none;">
+            <span class="rx-sec-title">Investigations:</span>
+            <div class="rx-sec-body" id="prx-investigations"></div>
+          </div>
+        </div>
+
+        <!-- Right Column -->
+        <div class="rx-col-right">
+          <div class="rx-vitals-strip">
+            <div class="rx-vital-col">Temp<span class="rx-vital-val" id="prx-temp"></span></div>
+            <div class="rx-vital-col">B.P<span class="rx-vital-val" id="prx-bp"></span></div>
+            <div class="rx-vital-col">R.R<span class="rx-vital-val" id="prx-rr"></span></div>
+            <div class="rx-vital-col">Pulse<span class="rx-vital-val" id="prx-pulse"></span></div>
+            <div class="rx-vital-col">Weight<span class="rx-vital-val" id="prx-weight"></span></div>
+          </div>
+
+          <div class="rx-diag-box">
+            <span class="rx-diag-title">Provisional/Diagnosis:</span>
+            <div class="rx-diag-content" id="prx-diagnosis"></div>
+          </div>
+
+          <div class="rx-treatment-area">
+            <div class="rx-sign-symbol">Rx</div>
+            <div class="rx-treatment-content" id="prx-treatment"></div>
+          </div>
+
+          <div class="rx-signature-block">
+            Dr. Hafiz Ehsan Qadeer<br />
+            <span>M.B.B.S. (PB) · Family Physician</span>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- Urdu Consent Box -->
+      <div class="rx-consent-box">
+        <div class="rx-consent-item">
+          میں علاج کی غرض سے کلینک آئی/آیا ہوں ۔ اس سلسلے میں معائنہ/تشخیص کے لیے درکار کارروائی اور علاج کی اجازت دیتا/دیتی ہوں اور میرے والدین/ورثان
+        </div>
+        <div class="rx-consent-item">
+          کسی بھی پیچیدگی آنے کی صورت میں، کلینک عملہ یا ڈاکٹر کو ذمہ دار نہ سمجھوں گا/گی۔ اگر مجھے ریفر کیا جائے، مجھے کوئی اعتراض نہیں ہوگا۔
+        </div>
+      </div>
+
+      <!-- Footer -->
+      <div class="rx-footer-strip">
+        <div class="rx-footer-col">Revisit After: <span id="prx-revisit"></span> Days</div>
+        <div class="rx-footer-col">Contact Number: <strong>041-4711753 / 0313-6530553</strong></div>
+        <div class="rx-footer-col">Timings: Daily, 10:00AM till Sunset</div>
+      </div>
+
+    </div>
+  </div>
+
+  <script src="assets/images-base64.js"></script>
+  <script>
+    // Fallback image source
+    if (window.HAJRA_ASSETS && window.HAJRA_ASSETS.header) {
+      document.getElementById('rx-img-header').src = window.HAJRA_ASSETS.header;
+    }
+
+    // Populate data from URL parameters or postMessage
+    function fillField(id, val) {
+      var el = document.getElementById(id);
+      if (el) el.innerHTML = val || '';
+    }
+    function fillText(id, val) {
+      var el = document.getElementById(id);
+      if (el) el.textContent = val || '';
+    }
+
+    window.addEventListener('message', function(e) {
+      if (e.data && e.data.type === 'RX_DATA') {
+        var d = e.data.payload;
+        fillText('prx-name', d.name);
+        fillText('prx-relation-lbl', (d.relation || 'S/O') + ':');
+        fillText('prx-parent-name', d.parentage);
+        fillText('prx-date', d.date);
+        fillText('prx-age', d.age ? d.age + ' Y' : '');
+        fillText('prx-gender', d.gender);
+        fillText('prx-refno', d.mrNumber);
+        fillText('prx-visit', d.visitNo || '1');
+        fillText('prx-address', d.address);
+        fillText('prx-phone', d.phone);
+
+        fillField('prx-allergy', d.allergy);
+        fillField('prx-symptoms', d.symptoms);
+        fillField('prx-findings', d.findings);
+        fillField('prx-comments', d.comments);
+        fillField('prx-investigations', d.investigations);
+
+        fillText('prx-temp', d.temp);
+        fillText('prx-bp', d.bp);
+        fillText('prx-rr', d.rr);
+        fillText('prx-pulse', d.pulse);
+        fillText('prx-weight', d.weight);
+
+        fillField('prx-diagnosis', d.diagnosis);
+        fillField('prx-treatment', d.treatment);
+        fillText('prx-revisit', d.revisit);
+
+        if (e.data.autoPrint) {
+          setTimeout(function(){ window.print(); }, 200);
+        }
+      }
+    });
+
+    if (window.opener) {
+      window.opener.postMessage({ type: 'RX_READY' }, '*');
+    }
+  </script>
+</body>
+</html>
