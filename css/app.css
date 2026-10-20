@@ -202,6 +202,59 @@ body {
   margin-bottom: 12px;
 }
 
+/* Collapsible Dashboard */
+.dash-label-btn {
+  background: none;
+  border: none;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  cursor: pointer;
+  padding: 0;
+  font-family: var(--font-main);
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  color: var(--text-light);
+  letter-spacing: 0.8px;
+}
+.dash-label-btn:hover { color: var(--teal); }
+.dash-chevron {
+  font-size: 9px;
+  opacity: 0.7;
+  transition: transform 0.25s ease;
+  display: inline-block;
+}
+.dash-chevron.open { transform: rotate(90deg); }
+.dash-stats-wrap {
+  overflow: hidden;
+  max-height: 0;
+  opacity: 0;
+  transition: max-height 0.3s ease, opacity 0.28s ease, margin 0.25s ease;
+  margin-top: 0;
+}
+.dash-stats-wrap.open {
+  max-height: 400px;
+  opacity: 1;
+  margin-top: 10px;
+}
+
+/* Draggable Sidebar Resizer Handle */
+#sb-resize-handle {
+  position: fixed;
+  top: 64px;
+  bottom: 60px;
+  width: 6px;
+  cursor: col-resize;
+  z-index: 850;
+  background: transparent;
+  transition: background 0.15s ease;
+}
+#sb-resize-handle:hover, #sb-resize-handle.dragging {
+  background: var(--teal);
+}
+
 /* Dashboard Stats Cards */
 .stats-grid {
   display: flex;

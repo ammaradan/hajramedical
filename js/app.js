@@ -52,6 +52,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     setupTemplatesUI();
     setupSearchListeners();
     setupModals();
+    initSidebarResize();
 
     await resetFormToNew();
     await refreshSidebarStats();
@@ -347,6 +348,17 @@ function execEditorCmd(cmd, value = null) {
 // ── CLINICAL TEMPLATES PANEL ────────────────────────────────────────
 let _allTemplates = [];
 let _activeCategory = 'All';
+let _tplAutoCloseTimer = null;
+
+const TPL_CAT_FIELD = {
+  'Findings': 'ed-findings',
+  'Diagnosis': 'ed-diagnosis',
+  'Investigations': 'ed-investigations',
+  'Comments': 'ed-comments',
+  'Advice': 'ed-comments',
+  'Treatment': 'ed-treatment',
+  'Recommendations': 'ed-findings'
+};
 
 async function setupTemplatesUI() {
   _allTemplates = await HMC_DB.getTemplates();
@@ -364,6 +376,25 @@ function toggleTemplatesPanel() {
   if (btn) {
     btn.innerHTML = isOpen ? '✕ Close Templates' : '⚡ Clinical Templates';
   }
+}
+
+function tplPanelMouseEnter() {
+  if (_tplAutoCloseTimer) {
+    clearTimeout(_tplAutoCloseTimer);
+    _tplAutoCloseTimer = null;
+  }
+}
+
+function tplPanelMouseLeave() {
+  if (_tplAutoCloseTimer) clearTimeout(_tplAutoCloseTimer);
+  _tplAutoCloseTimer = setTimeout(() => {
+    const container = document.querySelector('.app-container');
+    if (container && container.classList.contains('templates-open')) {
+      container.classList.remove('templates-open');
+      const btn = document.getElementById('btn-toggle-templates');
+      if (btn) btn.innerHTML = '⚡ Clinical Templates';
+    }
+  }, 3500);
 }
 
 function renderTemplateCategories() {
@@ -418,10 +449,15 @@ function insertTemplateText(tplId) {
   const tpl = _allTemplates.find(t => t.id === tplId);
   if (!tpl) return;
 
+  // Smart target resolution: if user has focused an editor, use it;
+  // otherwise, auto-target based on template category (e.g. Findings, Diagnosis, Treatment)
   let target = _activeEditor;
   if (!target) {
-    target = document.getElementById('ed-treatment');
+    const targetId = TPL_CAT_FIELD[tpl.cat] || 'ed-treatment';
+    target = document.getElementById(targetId);
   }
+
+  if (!target) target = document.getElementById('ed-treatment');
 
   target.focus();
   const textToInsert = tpl.body;
@@ -432,7 +468,86 @@ function insertTemplateText(tplId) {
   } else {
     target.innerHTML += (target.innerHTML.trim() ? '<br>' : '') + textToInsert.replace(/\n/g, '<br>');
   }
-  showToast(`Inserted: ${tpl.name}`, 'info');
+  showToast(`Inserted into ${target.previousElementSibling ? target.previousElementSibling.innerText : 'field'}: ${tpl.name}`, 'info');
+}
+
+// ── COLLAPSIBLE DASHBOARD STATS ─────────────────────────────────────
+function dashToggle() {
+  const wrap = document.getElementById('dash-stats-wrap');
+  const chevron = document.getElementById('dash-chevron');
+  if (!wrap) return;
+  const isOpen = wrap.classList.toggle('open');
+  if (chevron) chevron.classList.toggle('open', isOpen);
+}
+
+// ── INTERACTIVE RESIZABLE SIDEBAR ───────────────────────────────────
+function initSidebarResize() {
+  const SB_MIN = 220;
+  const SB_MAX = 460;
+  const SB_DEFAULT = 310;
+  const STORE_KEY = 'cf_sidebar_w';
+
+  const container = document.querySelector('.app-container');
+  const sidebar = document.querySelector('.sidebar');
+  if (!container || !sidebar) return;
+
+  // Restore saved width
+  const savedW = parseInt(localStorage.getItem(STORE_KEY), 10);
+  if (savedW && savedW >= SB_MIN && savedW <= SB_MAX) {
+    applySidebarWidth(savedW);
+  }
+
+  // Create drag handle
+  const handle = document.createElement('div');
+  handle.id = 'sb-resize-handle';
+  handle.setAttribute('aria-hidden', 'true');
+  document.body.appendChild(handle);
+
+  function positionHandle() {
+    const rect = sidebar.getBoundingClientRect();
+    handle.style.left = (rect.right - 3) + 'px';
+  }
+  positionHandle();
+  window.addEventListener('resize', positionHandle);
+
+  let dragging = false;
+  let startX = 0;
+  let startW = SB_DEFAULT;
+
+  handle.addEventListener('mousedown', (e) => {
+    dragging = true;
+    startX = e.clientX;
+    startW = sidebar.getBoundingClientRect().width;
+    handle.classList.add('dragging');
+    document.body.style.cursor = 'col-resize';
+    document.body.style.userSelect = 'none';
+  });
+
+  window.addEventListener('mousemove', (e) => {
+    if (!dragging) return;
+    const dx = e.clientX - startX;
+    let newW = Math.max(SB_MIN, Math.min(SB_MAX, startW + dx));
+    applySidebarWidth(newW);
+    positionHandle();
+  });
+
+  window.addEventListener('mouseup', () => {
+    if (dragging) {
+      dragging = false;
+      handle.classList.remove('dragging');
+      document.body.style.cursor = '';
+      document.body.style.userSelect = '';
+      const finalW = Math.round(sidebar.getBoundingClientRect().width);
+      localStorage.setItem(STORE_KEY, finalW);
+    }
+  });
+
+  function applySidebarWidth(w) {
+    const isTplOpen = container.classList.contains('templates-open');
+    container.style.gridTemplateColumns = `${w}px 1fr ${isTplOpen ? '320px' : '0px'}`;
+    const bottomBar = document.querySelector('.action-bar-bottom');
+    if (bottomBar) bottomBar.style.left = `${w}px`;
+  }
 }
 
 // ── PRESCRIPTION PRINTING & PREVIEW ─────────────────────────────────

@@ -51,29 +51,34 @@
 
     <!-- ── SIDEBAR ────────────────────────────────────────────────── -->
     <aside class="sidebar">
-      <!-- Dashboard Stats -->
+      <!-- Dashboard Stats (Collapsible) -->
       <div class="sidebar-block">
-        <div class="sidebar-title">Clinic Overview</div>
-        <div class="stats-grid">
-          <div class="stat-item">
-            <div class="stat-icon blue">👥</div>
-            <div>
-              <div class="stat-val" id="stat-total-val">0</div>
-              <div class="stat-label">Total Patients</div>
+        <button class="dash-label-btn" onclick="dashToggle()" id="dash-toggle-btn" title="Show/hide statistics">
+          <span>Clinic Overview</span>
+          <span class="dash-chevron open" id="dash-chevron">▶</span>
+        </button>
+        <div class="dash-stats-wrap open" id="dash-stats-wrap">
+          <div class="stats-grid">
+            <div class="stat-item">
+              <div class="stat-icon blue">👥</div>
+              <div>
+                <div class="stat-val" id="stat-total-val">0</div>
+                <div class="stat-label">Total Patients</div>
+              </div>
             </div>
-          </div>
-          <div class="stat-item">
-            <div class="stat-icon green">📅</div>
-            <div>
-              <div class="stat-val" id="stat-today-val">0</div>
-              <div class="stat-label">Today's Visits</div>
+            <div class="stat-item">
+              <div class="stat-icon green">📅</div>
+              <div>
+                <div class="stat-val" id="stat-today-val">0</div>
+                <div class="stat-label">Today's Visits</div>
+              </div>
             </div>
-          </div>
-          <div class="stat-item">
-            <div class="stat-icon amber">🔄</div>
-            <div>
-              <div class="stat-val" id="stat-returning-val">0</div>
-              <div class="stat-label">Returning Patients</div>
+            <div class="stat-item">
+              <div class="stat-icon amber">🔄</div>
+              <div>
+                <div class="stat-val" id="stat-returning-val">0</div>
+                <div class="stat-label">Returning Patients</div>
+              </div>
             </div>
           </div>
         </div>
@@ -317,7 +322,7 @@
     </main>
 
     <!-- ── RIGHT FLYOUT: CLINICAL TEMPLATES ────────────────────────── -->
-    <aside class="templates-panel" id="templates-flyout">
+    <aside class="templates-panel" id="templates-flyout" onmouseenter="tplPanelMouseEnter()" onmouseleave="tplPanelMouseLeave()">
       <div class="tpl-header">
         <h3>⚡ Clinical Templates</h3>
         <button class="modal-close" onclick="toggleTemplatesPanel()" title="Close Templates">✕</button>
