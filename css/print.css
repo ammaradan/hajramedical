@@ -17,7 +17,7 @@
   min-height: 297mm;
   background: #FFFFFF;
   box-shadow: 0 8px 30px rgba(0,0,0,0.3);
-  padding: 10mm 12mm 6mm 12mm;
+  padding: 10mm 12mm 10mm 12mm;
   box-sizing: border-box;
   display: flex;
   flex-direction: column;
@@ -223,48 +223,66 @@
 
 /* Urdu Consent Box */
 .rx-consent-box {
-  margin-top: 2mm;
+  margin-top: 2.5mm;
   border: 1px solid #000;
+  border-bottom: none;
   font-size: 8.5pt;
   direction: rtl;
   font-family: "Noto Nastaliq Urdu", "Jameel Noori Nastaleeq", "Arial Unicode MS", serif;
   text-align: right;
+  box-sizing: border-box;
+  width: 100%;
 }
 
 .rx-consent-item {
-  padding: 1mm 2.5mm;
+  padding: 1.2mm 2.5mm;
   border-bottom: 1px solid #000;
   line-height: 1.6;
+  box-sizing: border-box;
 }
-.rx-consent-item:last-child { border-bottom: none; }
 
 /* Prescription Footer Row */
 .rx-footer-strip {
   display: flex;
+  align-items: center;
+  justify-content: space-between;
   border: 1px solid #000;
-  border-top: none;
-  font-size: 9pt;
+  margin-top: -1px;
+  font-size: 8.5pt;
   font-weight: 700;
-  font-family: "Calibri", Arial, sans-serif;
+  font-family: "Calibri", "Segoe UI", Arial, sans-serif;
+  box-sizing: border-box;
+  width: 100%;
+  background: #FFFFFF;
 }
 
 .rx-footer-col {
-  flex: 1;
-  padding: 1mm 2mm;
+  padding: 1.2mm 2.5mm;
   white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  box-sizing: border-box;
 }
-.rx-footer-col:nth-child(2),
-.rx-footer-col:nth-child(3) {
+
+.rx-col-revisit {
+  flex: 0 0 auto;
+  text-align: left;
+}
+
+.rx-col-contact {
+  flex: 1 1 auto;
   text-align: center;
+  padding: 1.2mm 3mm;
+}
+
+.rx-col-timings {
+  flex: 0 0 auto;
+  text-align: right;
 }
 
 /* ── MEDIA PRINT OVERRIDES ─────────────────────────────────────── */
 @media print {
   @page {
     size: A4 portrait;
-    margin: 8mm 10mm 6mm 10mm;
+    margin: 8mm 12mm 10mm 12mm;
   }
 
   html, body {
@@ -320,7 +338,8 @@
   #rx-a4-page {
     box-shadow: none !important;
     width: 100% !important;
-    min-height: 280mm !important;
+    min-height: auto !important;
+    max-height: 275mm !important;
     height: auto !important;
     padding: 0 !important;
     margin: 0 !important;
@@ -333,7 +352,7 @@
 
   .rx-col-left { flex: 0 0 48% !important; }
   .rx-col-right { flex: 1 1 auto !important; }
-  .rx-main-body { flex: 1 1 auto !important; min-height: 155mm !important; }
+  .rx-main-body { flex: 1 1 auto !important; min-height: 145mm !important; }
   .rx-consent-box { flex-shrink: 0 !important; }
   .rx-footer-strip { flex-shrink: 0 !important; }
 

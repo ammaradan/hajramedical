@@ -34,11 +34,12 @@
     .abtn-print { background: #008060; color: #fff; }
     .abtn-close { background: rgba(255,255,255,0.15); color: #fff; border: 1px solid rgba(255,255,255,0.3); }
     #page-wrap {
-      padding-top: 70px;
+      padding: 70px 20px 40px 20px;
       display: flex;
       justify-content: center;
       background: #525659;
       min-height: 100vh;
+      box-sizing: border-box;
     }
     @media print {
       #action-bar { display: none !important; }
@@ -173,9 +174,9 @@
 
       <!-- Footer -->
       <div class="rx-footer-strip">
-        <div class="rx-footer-col">Revisit After: <span id="prx-revisit"></span> Days</div>
-        <div class="rx-footer-col">Contact Number: <strong>041-4711753 / 0313-6530553</strong></div>
-        <div class="rx-footer-col">Timings: Daily, 10:00AM till Sunset</div>
+        <div class="rx-footer-col rx-col-revisit">Revisit After: <span id="prx-revisit"></span> Days</div>
+        <div class="rx-footer-col rx-col-contact">Contact Number: <strong>041-4711753 / 0313-6530553</strong></div>
+        <div class="rx-footer-col rx-col-timings">Timings: Daily, 10:00AM till Sunset</div>
       </div>
 
     </div>
