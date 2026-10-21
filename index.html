@@ -183,6 +183,21 @@
       });
     },
 
+    getAllPatients: function() {
+      return openDB().then(function(db) {
+        return new Promise(function(resolve) {
+          var tx = db.transaction('patients', 'readonly');
+          var store = tx.objectStore('patients');
+          var req = store.getAll();
+          req.onsuccess = function() {
+            var all = req.result || [];
+            resolve(all.slice().reverse());
+          };
+          req.onerror = function() { resolve([]); };
+        });
+      });
+    },
+
     getPatientVisits: function(patientId) {
       return openDB().then(function(db) {
         return new Promise(function(resolve) {
@@ -4410,7 +4425,7 @@ var TPL_DEFAULTS = [
     "name": "Rule out Appendicitis (2)",
     "body": "Rule out Appendicitis"
   }
-]; }
+];
 function tplNextId() { return 'T' + Date.now() + Math.floor(Math.random()*1000); }
 function tplSetStatus(msg) { var el=document.getElementById('tpl-status'); if(el) el.textContent=msg; }
 
@@ -5576,17 +5591,7 @@ function confirmDatabasePassword(){
   var pwd = document.getElementById('db-password-input').value;
   if(pwd === _dbPassword){
     closeDatabaseModal();
-    if(typeof google !== 'undefined' && google.script && google.script.run){
-      google.script.run
-        .withSuccessHandler(function(url){
-          if(url) window.open(url, '_blank');
-          else toast('Could not get sheet URL.', 'error');
-        })
-        .withFailureHandler(function(){ toast('Could not open database.', 'error'); })
-        .getSpreadsheetUrl();
-    } else {
-      toast('DataBase only available in the deployed app.', 'info');
-    }
+    openPatientDbModal();
   } else {
     var errEl = document.getElementById('db-error');
     errEl.textContent = 'Incorrect password. Please try again.';
@@ -5638,7 +5643,197 @@ window.addEventListener('DOMContentLoaded', function(){
   if(dbModal) dbModal.addEventListener('click', function(e){
     if(e.target === this) closeDatabaseModal();
   });
+  var pDbModal = document.getElementById('patient-db-modal');
+  if(pDbModal) pDbModal.addEventListener('click', function(e){
+    if(e.target === this) closePatientDbModal();
+  });
 });
+
+/* ═══════════════════════════════════════════════════════════
+   PATIENT DATABASE & RECORDS TABLE MODAL
+   ═══════════════════════════════════════════════════════════ */
+var _allDbPatients = [];
+
+function openPatientDbModal() {
+  var modal = document.getElementById('patient-db-modal');
+  if (!modal) return;
+  modal.style.display = 'flex';
+  var tbody = document.getElementById('db-patient-tbody');
+  if (tbody) {
+    tbody.innerHTML = '<tr><td colspan="8" style="padding:32px;text-align:center;color:#7A9590;">Loading patient records...</td></tr>';
+  }
+  var searchInput = document.getElementById('db-search-input');
+  if (searchInput) {
+    searchInput.value = '';
+    setTimeout(function() { searchInput.focus(); }, 100);
+  }
+
+  // Load records from IndexedDB or Apps Script
+  if (typeof standaloneBackend !== 'undefined' && standaloneBackend.getAllPatients) {
+    standaloneBackend.getAllPatients().then(function(records) {
+      _allDbPatients = records || [];
+      renderPatientDbTable(_allDbPatients);
+    }).catch(function(e) {
+      if (tbody) tbody.innerHTML = '<tr><td colspan="8" style="padding:30px;text-align:center;color:#C0392B;">Error loading records: ' + esc(e.message || e) + '</td></tr>';
+    });
+  } else if (typeof google !== 'undefined' && google.script && google.script.run) {
+    google.script.run
+      .withSuccessHandler(function(records) {
+        _allDbPatients = records || [];
+        renderPatientDbTable(_allDbPatients);
+      })
+      .withFailureHandler(function(err) {
+        if (tbody) tbody.innerHTML = '<tr><td colspan="8" style="padding:30px;text-align:center;color:#C0392B;">Error loading records: ' + esc(err.message || '') + '</td></tr>';
+      })
+      .searchPatients('');
+  }
+}
+
+function closePatientDbModal() {
+  var modal = document.getElementById('patient-db-modal');
+  if (modal) modal.style.display = 'none';
+}
+
+function filterPatientDbTable() {
+  var q = (document.getElementById('db-search-input').value || '').trim().toLowerCase();
+  if (!_allDbPatients) return;
+  if (!q) {
+    renderPatientDbTable(_allDbPatients);
+    return;
+  }
+  var filtered = _allDbPatients.filter(function(r) {
+    return String(r.name || '').toLowerCase().includes(q) ||
+           String(r.patientId || '').toLowerCase().includes(q) ||
+           String(r.serialNo || '').toLowerCase().includes(q) ||
+           String(r.phone || '').toLowerCase().includes(q) ||
+           String(r.cnic || '').toLowerCase().includes(q) ||
+           String(r.address || '').toLowerCase().includes(q) ||
+           String(r.diagnosis || '').toLowerCase().includes(q);
+  });
+  renderPatientDbTable(filtered);
+}
+
+function renderPatientDbTable(list) {
+  var tbody = document.getElementById('db-patient-tbody');
+  var countBadge = document.getElementById('db-count-badge');
+  if (countBadge) {
+    countBadge.textContent = (list ? list.length : 0) + ' Records';
+  }
+  if (!tbody) return;
+  if (!list || list.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="8" style="padding:32px;text-align:center;color:#8FA09C;font-size:14px;">No patient records found.</td></tr>';
+    return;
+  }
+  var html = '';
+  list.forEach(function(r) {
+    var sNo = r.serialNo || '-';
+    var mr = r.patientId || '-';
+    var name = r.name || 'Unnamed';
+    var rel = r.parentage || '-';
+    var ageGender = (r.age ? r.age + 'y' : '') + (r.age && r.gender ? ' / ' : '') + (r.gender || '');
+    if (!ageGender) ageGender = '-';
+    var phone = r.phone || '-';
+    var dateVisit = (r.date || '-') + (r.visitNo ? ' (V#' + r.visitNo + ')' : '');
+
+    html += '<tr style="border-bottom:1px solid #E8EFED;transition:background .15s;" onmouseover="this.style.background=\'#F7FAF9\'" onmouseout="this.style.background=\'\'">'
+      + '<td style="padding:10px 12px;font-weight:600;color:#1B3A4B;">#' + sNo + '</td>'
+      + '<td style="padding:10px 12px;font-family:monospace;font-weight:700;color:#2D7D6F;">' + esc(mr) + '</td>'
+      + '<td style="padding:10px 12px;font-weight:700;color:#1A2E2B;">' + esc(name) + '</td>'
+      + '<td style="padding:10px 12px;color:#556;">' + esc(rel) + '</td>'
+      + '<td style="padding:10px 12px;color:#334;">' + esc(ageGender) + '</td>'
+      + '<td style="padding:10px 12px;color:#334;">' + esc(phone) + '</td>'
+      + '<td style="padding:10px 12px;color:#667;font-size:12px;">' + esc(dateVisit) + '</td>'
+      + '<td style="padding:10px 12px;text-align:center;white-space:nowrap;">'
+      + '  <button onclick="loadPatientFromDb(' + sNo + ')" style="background:#2D7D6F;color:#fff;border:none;border-radius:6px;padding:6px 12px;font-size:12px;font-weight:600;cursor:pointer;margin-right:6px;" title="Open in Main Form">📂 Open</button>'
+      + '  <button onclick="printPatientFromDb(' + sNo + ')" style="background:#9B3DAB;color:#fff;border:none;border-radius:6px;padding:6px 10px;font-size:12px;font-weight:600;cursor:pointer;" title="Direct Print Prescription">🖨 Rx</button>'
+      + '</td>'
+      + '</tr>';
+  });
+  tbody.innerHTML = html;
+}
+
+function loadPatientFromDb(serialNo) {
+  var rec = (_allDbPatients || []).find(function(p) { return Number(p.serialNo) === Number(serialNo); });
+  if (!rec) { toast('Record not found.', 'error'); return; }
+  loadPatientIntoForm(rec);
+  closePatientDbModal();
+  toast('Loaded: ' + (rec.name || '') + ' (' + (rec.patientId || '') + ')', 'success');
+}
+
+function printPatientFromDb(serialNo) {
+  var rec = (_allDbPatients || []).find(function(p) { return Number(p.serialNo) === Number(serialNo); });
+  if (!rec) { toast('Record not found.', 'error'); return; }
+  fillPrintOverlay(rec);
+  var ov = document.getElementById('rx-print-overlay');
+  ov.style.display = 'block';
+  setTimeout(function() {
+    window.print();
+    setTimeout(function() { ov.style.display = 'none'; }, 500);
+  }, 150);
+}
+
+function exportDbToCsv() {
+  if (!_allDbPatients || _allDbPatients.length === 0) {
+    toast('No patient records available to export.', 'info');
+    return;
+  }
+  var headers = [
+    'SerialNo', 'MR_Number', 'VisitNo', 'Date', 'Time', 'Patient_Name',
+    'Parentage', 'Age', 'Gender', 'Weight_kg', 'Phone', 'CNIC', 'Address',
+    'Temp_F', 'BP', 'Pulse', 'RR', 'Revisit_Days',
+    'Allergy', 'Presenting_Complaints', 'Findings', 'Comments', 'Investigations', 'Diagnosis', 'Treatment'
+  ];
+
+  function cleanField(val) {
+    if (val === null || val === undefined) return '""';
+    var str = String(val).replace(/<[^>]+>/g, ' ').replace(/\r\n|\r|\n/g, ' ').replace(/"/g, '""').trim();
+    return '"' + str + '"';
+  }
+
+  var csvRows = [headers.join(',')];
+  _allDbPatients.forEach(function(p) {
+    var row = [
+      p.serialNo || '',
+      cleanField(p.patientId),
+      p.visitNo || '',
+      cleanField(p.date),
+      cleanField(p.time),
+      cleanField(p.name),
+      cleanField(p.parentage),
+      cleanField(p.age),
+      cleanField(p.gender),
+      cleanField(p.weight),
+      cleanField(p.phone),
+      cleanField(p.cnic),
+      cleanField(p.address),
+      cleanField(p.temp),
+      cleanField(p.bp),
+      cleanField(p.pulse),
+      cleanField(p.rr),
+      cleanField(p.revisit),
+      cleanField(p.allergy),
+      cleanField(p.symptoms),
+      cleanField(p.findings),
+      cleanField(p.comments),
+      cleanField(p.investigations),
+      cleanField(p.diagnosis),
+      cleanField(p.treatment)
+    ];
+    csvRows.push(row.join(','));
+  });
+
+  var csvContent = '\uFEFF' + csvRows.join('\r\n');
+  var blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+  var url = URL.createObjectURL(blob);
+  var link = document.createElement('a');
+  link.setAttribute('href', url);
+  var today = new Date().toISOString().slice(0, 10);
+  link.setAttribute('download', 'Hajra_Medical_Complex_Patients_' + today + '.csv');
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  toast('Database exported successfully as CSV!', 'success');
+}
 
 function openPaymentModule(){ document.getElementById('pay-panel').classList.add('pay-open'); initPayForm(); }
 function closePaymentModule(){ document.getElementById('pay-panel').classList.remove('pay-open'); }
@@ -6020,51 +6215,7 @@ function printReceiptData(p){
     +'  </div>'
     +'</div>'
     +'</div></div></div>'
-    +'
-<!-- ══════════════════════════════════════════
-     DATABASE / PATIENT RECORDS MODAL
-     ══════════════════════════════════════════ -->
-<div id="patient-db-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:9999;align-items:center;justify-content:center;padding:20px;">
-  <div style="background:#fff;border-radius:14px;width:100%;max-width:960px;max-height:90vh;display:flex;flex-direction:column;overflow:hidden;box-shadow:0 16px 48px rgba(0,0,0,.3);">
-    <div style="padding:16px 20px;background:#1B3A4B;color:#fff;display:flex;align-items:center;justify-content:space-between;">
-      <div style="display:flex;align-items:center;gap:10px;">
-        <span style="font-size:22px;">🗄</span>
-        <h3 style="margin:0;font-size:17px;font-weight:700;">Hajra Medical Complex — Patient Database</h3>
-      </div>
-      <button onclick="closePatientDbModal()" style="background:rgba(255,255,255,.15);color:#fff;border:none;border-radius:6px;padding:6px 14px;cursor:pointer;font-size:14px;font-weight:700;">✕ Close</button>
-    </div>
-    
-    <div style="padding:16px 20px;background:#F4F7F6;border-bottom:1px solid #C8D8D4;display:flex;gap:12px;align-items:center;">
-      <input type="text" id="db-search-input" placeholder="Search by Patient Name, MR Number, Phone, or CNIC..." 
-             style="flex:1;padding:10px 14px;border:1.5px solid #C8D8D4;border-radius:8px;font-size:14px;outline:none;" 
-             oninput="filterPatientDbTable()" />
-      <button onclick="filterPatientDbTable()" style="background:#2D7D6F;color:#fff;border:none;border-radius:8px;padding:10px 18px;font-weight:600;cursor:pointer;">Search</button>
-      <button onclick="exportDbToCsv()" style="background:#1B3A4B;color:#fff;border:none;border-radius:8px;padding:10px 16px;font-weight:600;cursor:pointer;">📥 Export CSV</button>
-    </div>
-
-    <div style="flex:1;overflow-y:auto;padding:20px;" id="db-table-container">
-      <table style="width:100%;border-collapse:collapse;font-size:13px;text-align:left;">
-        <thead>
-          <tr style="background:#EAF5F2;color:#1C2E2A;border-bottom:2px solid #C8D8D4;">
-            <th style="padding:10px 12px;">Serial</th>
-            <th style="padding:10px 12px;">MR Number</th>
-            <th style="padding:10px 12px;">Patient Name</th>
-            <th style="padding:10px 12px;">Relation</th>
-            <th style="padding:10px 12px;">Age/Gender</th>
-            <th style="padding:10px 12px;">Phone</th>
-            <th style="padding:10px 12px;">Date & Visit</th>
-            <th style="padding:10px 12px;text-align:center;">Action</th>
-          </tr>
-        </thead>
-        <tbody id="db-patient-tbody">
-          <tr><td colspan="8" style="padding:30px;text-align:center;color:#7A9590;">Loading patient records...</td></tr>
-        </tbody>
-      </table>
-    </div>
-  </div>
-</div>
-
-</body></html>';
+    +'</body></html>';
 
   var blob = new Blob([html], {type:'text/html'});
   var url  = URL.createObjectURL(blob);
@@ -6773,6 +6924,53 @@ window.addEventListener('DOMContentLoaded', function(){
       <button class="btn-pws-cancel" onclick="closePwsModal()">
         Cancel
       </button>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════
+     DATABASE / PATIENT RECORDS MODAL
+     ══════════════════════════════════════════ -->
+<div id="patient-db-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.60);z-index:9999;align-items:center;justify-content:center;padding:20px;">
+  <div style="background:#fff;border-radius:14px;width:100%;max-width:1050px;max-height:90vh;display:flex;flex-direction:column;overflow:hidden;box-shadow:0 20px 50px rgba(0,0,0,.35);">
+    <div style="padding:16px 20px;background:#1B3A4B;color:#fff;display:flex;align-items:center;justify-content:space-between;">
+      <div style="display:flex;align-items:center;gap:12px;">
+        <span style="font-size:24px;">🗄</span>
+        <div>
+          <h3 style="margin:0;font-size:17px;font-weight:700;">Hajra Medical Complex — Patient Database</h3>
+          <span id="db-count-badge" style="display:inline-block;margin-top:2px;font-size:11px;background:rgba(255,255,255,.18);padding:2px 8px;border-radius:12px;font-weight:600;">0 Records</span>
+        </div>
+      </div>
+      <button onclick="closePatientDbModal()" style="background:rgba(255,255,255,.15);color:#fff;border:none;border-radius:6px;padding:8px 16px;cursor:pointer;font-size:14px;font-weight:700;transition:background .2s;" onmouseover="this.style.background='rgba(255,255,255,.25)'" onmouseout="this.style.background='rgba(255,255,255,.15)'">✕ Close</button>
+    </div>
+    
+    <div style="padding:14px 20px;background:#F4F7F6;border-bottom:1px solid #C8D8D4;display:flex;gap:12px;align-items:center;flex-wrap:wrap;">
+      <input type="text" id="db-search-input" placeholder="Search by Patient Name, MR Number, Phone, CNIC, or Address..." 
+             style="flex:1;min-width:240px;padding:10px 14px;border:1.5px solid #C8D8D4;border-radius:8px;font-size:14px;outline:none;background:#fff;" 
+             oninput="filterPatientDbTable()" />
+      <button onclick="filterPatientDbTable()" style="background:#2D7D6F;color:#fff;border:none;border-radius:8px;padding:10px 18px;font-weight:600;font-size:13px;cursor:pointer;">🔍 Search</button>
+      <button onclick="openPatientDbModal()" style="background:#EAF5F2;color:#2D7D6F;border:1px solid #2D7D6F;border-radius:8px;padding:10px 14px;font-weight:600;font-size:13px;cursor:pointer;">🔄 Refresh</button>
+      <button onclick="exportDbToCsv()" style="background:#1B3A4B;color:#fff;border:none;border-radius:8px;padding:10px 16px;font-weight:600;font-size:13px;cursor:pointer;">📥 Export CSV</button>
+    </div>
+
+    <div style="flex:1;overflow-y:auto;padding:16px 20px;" id="db-table-container">
+      <table style="width:100%;border-collapse:collapse;font-size:13px;text-align:left;">
+        <thead>
+          <tr style="background:#EAF5F2;color:#1C2E2A;border-bottom:2px solid #C8D8D4;position:sticky;top:0;z-index:2;">
+            <th style="padding:10px 12px;width:70px;">Serial</th>
+            <th style="padding:10px 12px;width:110px;">MR Number</th>
+            <th style="padding:10px 12px;">Patient Name</th>
+            <th style="padding:10px 12px;">Relation</th>
+            <th style="padding:10px 12px;">Age/Gender</th>
+            <th style="padding:10px 12px;">Phone</th>
+            <th style="padding:10px 12px;">Date & Visit</th>
+            <th style="padding:10px 12px;text-align:center;width:140px;">Actions</th>
+          </tr>
+        </thead>
+        <tbody id="db-patient-tbody">
+          <tr><td colspan="8" style="padding:32px;text-align:center;color:#7A9590;">Loading patient records...</td></tr>
+        </tbody>
+      </table>
     </div>
   </div>
 </div>

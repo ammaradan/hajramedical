@@ -48,8 +48,8 @@ Deployed effortlessly to **Vercel** and ready for production use across PCs, lap
 - **Direct Print**: Triggers print dialog formatted specifically for A4 printers without UI bleed.
 - **Walk-in Quick Print**: Print temporary prescriptions without saving to database.
 
-### 3. ⚡ Clinical Templates Library (52+ Built-in Templates)
-- Pre-loaded with ultrasound recommendations, common clinical conditions, and OPD treatments (Renal stones, Gallstones, Gastritis, Hernia, Appendicitis, Bronchitis, UTI, URTI, Diabetes, Hypertension, etc.).
+### 3. ⚡ Clinical Templates Library (91+ Built-in Templates)
+- Pre-loaded with ultrasound recommendations, common clinical conditions, and OPD treatments (Renal stones, Gallstones, Gastritis, Hernia, Appendicitis, Bronchitis, UTI, URTI, Diabetes, Hypertension, Pregnancy OBS, Pelvic ultrasound, Breast Scan, Cirrhosis, Hydronephrosis, etc.).
 - Categorized tabs & quick keyword search.
 - One-click insertion directly into active clinical note fields.
 
