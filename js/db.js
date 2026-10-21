@@ -728,6 +728,22 @@ async function deleteAppointment(apptId) {
 
 // ── TEMPLATES FUNCTIONS ─────────────────────────────────────────────
 
+function getDeletedTemplateIds() {
+  try {
+    return JSON.parse(localStorage.getItem('hmc_deleted_tpl_ids') || '[]');
+  } catch (e) {
+    return [];
+  }
+}
+
+function recordDeletedTemplateId(id) {
+  const list = getDeletedTemplateIds();
+  if (!list.includes(id)) {
+    list.push(id);
+    try { localStorage.setItem('hmc_deleted_tpl_ids', JSON.stringify(list)); } catch (e) {}
+  }
+}
+
 async function getTemplates() {
   const db = await initDB();
   return new Promise((resolve) => {
@@ -737,10 +753,11 @@ async function getTemplates() {
     req.onsuccess = () => {
       let list = req.result || [];
       const defaults = window.DEFAULT_CLINICAL_TEMPLATES || window.CLINICAL_TEMPLATES || [];
+      const deletedIds = new Set(getDeletedTemplateIds());
       if (defaults.length > 0) {
         const existingIds = new Set(list.map(t => t.id));
         defaults.forEach(defTpl => {
-          if (!existingIds.has(defTpl.id)) {
+          if (!existingIds.has(defTpl.id) && !deletedIds.has(defTpl.id)) {
             store.put(defTpl);
             list.push(defTpl);
           }
@@ -763,6 +780,14 @@ async function saveTemplate(tpl) {
     updatedAt: getPSTDate() + ' ' + getPSTTime()
   };
 
+  // If re-saving an ID, remove from deleted list if it was there
+  const deleted = getDeletedTemplateIds();
+  if (deleted.includes(id)) {
+    try {
+      localStorage.setItem('hmc_deleted_tpl_ids', JSON.stringify(deleted.filter(x => x !== id)));
+    } catch (e) {}
+  }
+
   return new Promise((resolve, reject) => {
     const tx = db.transaction('templates', 'readwrite');
     const store = tx.objectStore('templates');
@@ -773,6 +798,7 @@ async function saveTemplate(tpl) {
 }
 
 async function deleteTemplate(tplId) {
+  recordDeletedTemplateId(tplId);
   const db = await initDB();
   return new Promise((resolve, reject) => {
     const tx = db.transaction('templates', 'readwrite');

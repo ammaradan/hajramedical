@@ -296,8 +296,14 @@
     <!-- ── RIGHT FLYOUT: CLINICAL TEMPLATES ────────────────────────── -->
     <aside class="templates-panel" id="templates-flyout" onmouseenter="tplPanelMouseEnter()" onmouseleave="tplPanelMouseLeave()">
       <div class="tpl-header">
-        <h3>⚡ Clinical Templates</h3>
-        <button class="modal-close" onclick="toggleTemplatesPanel()" title="Close Templates">✕</button>
+        <div style="display:flex;align-items:center;gap:8px;">
+          <span>⚡</span>
+          <h3>Clinical Templates</h3>
+        </div>
+        <div style="display:flex;align-items:center;gap:6px;">
+          <button type="button" class="tpl-icon-btn" onclick="syncTemplates()" title="Synchronize / Refresh Templates">🔄</button>
+          <button type="button" class="modal-close" onclick="toggleTemplatesPanel()" title="Close Templates">✕</button>
+        </div>
       </div>
 
       <!-- Category Filter Tabs -->
@@ -822,37 +828,35 @@
     </div>
   </div>
 
-  <!-- ── MODAL: ADD CLINICAL TEMPLATE ─────────────────────────────── -->
+  <!-- ── MODAL: ADD / EDIT CLINICAL TEMPLATE ──────────────────────── -->
   <div class="modal-backdrop" id="modal-add-template">
     <div class="modal-card" style="max-width:540px;">
       <div class="modal-header">
-        <h2>➕ Add New Clinical Template</h2>
+        <h2 id="tpl-modal-title">➕ Add New Clinical Template</h2>
         <button class="modal-close" onclick="closeAddTemplateModal()">✕</button>
       </div>
       <div class="modal-body">
         <form id="form-add-template" onsubmit="event.preventDefault(); handleSaveNewTemplate();">
+          <input type="hidden" id="tpl-add-id" value="" />
           <div class="form-group" style="margin-bottom:14px;">
             <label>Template Title / Name *</label>
             <input type="text" id="tpl-add-name" placeholder="e.g. Pregnancy OBS, Renal Calculus, Gastritis..." required style="font-weight:600;" />
           </div>
           <div class="form-group" style="margin-bottom:14px;">
-            <label>Category *</label>
-            <select id="tpl-add-cat">
-              <option value="Findings">Findings</option>
-              <option value="Diagnosis">Diagnosis</option>
-              <option value="Treatment">Treatment</option>
-              <option value="Investigations">Investigations</option>
-              <option value="Comments">Comments</option>
-              <option value="Recommendations">Recommendations</option>
-            </select>
+            <label>Category (Choose or Type New Category) *</label>
+            <input type="text" id="tpl-add-cat" list="tpl-cat-datalist" placeholder="e.g. Findings, Diagnosis, Treatment, Ultrasound..." required style="font-weight:600;" />
+            <datalist id="tpl-cat-datalist"></datalist>
           </div>
           <div class="form-group" style="margin-bottom:16px;">
             <label>Template Content / Text *</label>
             <textarea id="tpl-add-body" rows="6" placeholder="Enter findings, prescription, dosage, or clinical text to insert..." required style="width:100%;padding:10px;border:1.5px solid var(--border);border-radius:var(--radius-sm);font-family:inherit;font-size:13px;resize:vertical;outline:none;"></textarea>
           </div>
-          <div style="display:flex;justify-content:flex-end;gap:10px;">
-            <button type="button" class="btn btn-outline" onclick="closeAddTemplateModal()">Cancel</button>
-            <button type="submit" class="btn btn-save">💾 Save Template</button>
+          <div style="display:flex;justify-content:space-between;align-items:center;">
+            <button type="button" class="btn btn-outline" id="tpl-btn-delete" style="color:var(--red);border-color:var(--red);display:none;" onclick="handleDeleteCurrentTemplate()">🗑 Delete Template</button>
+            <div style="display:flex;gap:10px;margin-left:auto;">
+              <button type="button" class="btn btn-outline" onclick="closeAddTemplateModal()">Cancel</button>
+              <button type="submit" class="btn btn-save" id="tpl-btn-save">💾 Save Template</button>
+            </div>
           </div>
         </form>
       </div>

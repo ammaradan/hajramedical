@@ -617,7 +617,8 @@ function renderTemplatesList() {
   if (searchQ) {
     filtered = filtered.filter(t => 
       (t.name && t.name.toLowerCase().includes(searchQ)) ||
-      (t.body && t.body.toLowerCase().includes(searchQ))
+      (t.body && t.body.toLowerCase().includes(searchQ)) ||
+      (t.cat && t.cat.toLowerCase().includes(searchQ))
     );
   }
 
@@ -628,7 +629,18 @@ function renderTemplatesList() {
 
   listContainer.innerHTML = filtered.map(t => `
     <div class="tpl-item-card" onclick="insertTemplateText('${t.id}')">
-      <div class="tpl-item-title">${escapeHtml(t.name)}</div>
+      <div class="tpl-item-header">
+        <div class="tpl-item-title">${escapeHtml(t.name)}</div>
+        <div class="tpl-card-actions" onclick="event.stopPropagation()">
+          <button type="button" class="tpl-action-btn" title="Paste / Insert into Form" onclick="insertTemplateText('${t.id}')">📥</button>
+          <button type="button" class="tpl-action-btn" title="Copy to Clipboard" onclick="copyTemplateText('${t.id}', event)">📋</button>
+          <button type="button" class="tpl-action-btn" title="Edit Template" onclick="editTemplate('${t.id}', event)">✏️</button>
+          <button type="button" class="tpl-action-btn btn-del" title="Delete Template" onclick="deleteTemplateItem('${t.id}', event)">🗑️</button>
+        </div>
+      </div>
+      <div style="display:flex;align-items:center;gap:6px;margin-bottom:4px;">
+        <span class="tpl-item-badge">${escapeHtml(t.cat || 'General')}</span>
+      </div>
       <div class="tpl-item-preview">${escapeHtml(t.body)}</div>
     </div>
   `).join('');
@@ -639,7 +651,7 @@ function insertTemplateText(tplId) {
   if (!tpl) return;
 
   // Smart target resolution: if user has focused an editor, use it;
-  // otherwise, auto-target based on template category (e.g. Findings, Diagnosis, Treatment)
+  // otherwise, auto-target based on template category
   let target = _activeEditor;
   if (!target) {
     const targetId = TPL_CAT_FIELD[tpl.cat] || 'ed-treatment';
@@ -649,26 +661,113 @@ function insertTemplateText(tplId) {
   if (!target) target = document.getElementById('ed-treatment');
 
   target.focus();
+  _activeEditor = target;
   const textToInsert = tpl.body;
   
   // Clean multiline insert
   if (document.queryCommandSupported('insertText')) {
-    document.execCommand('insertText', false, (target.innerText.trim() ? '\n' : '') + textToInsert);
+    const existing = target.innerText.trim();
+    document.execCommand('insertText', false, (existing ? '\n' : '') + textToInsert);
   } else {
     target.innerHTML += (target.innerHTML.trim() ? '<br>' : '') + textToInsert.replace(/\n/g, '<br>');
   }
   showToast(`Inserted into ${target.previousElementSibling ? target.previousElementSibling.innerText : 'field'}: ${tpl.name}`, 'info');
 }
 
-// ── ADD CLINICAL TEMPLATE MODAL HANDLERS ────────────────────────────
-function openAddTemplateModal() {
+function copyTemplateText(tplId, event) {
+  if (event) event.stopPropagation();
+  const tpl = _allTemplates.find(t => t.id === tplId);
+  if (!tpl) return;
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(tpl.body).then(() => {
+      showToast(`Copied "${tpl.name}" to clipboard!`, 'success');
+    }).catch(() => {
+      showToast('Clipboard access unavailable.', 'error');
+    });
+  } else {
+    showToast('Clipboard not supported by browser.', 'error');
+  }
+}
+
+function editTemplate(tplId, event) {
+  if (event) event.stopPropagation();
+  openAddTemplateModal(tplId);
+}
+
+function deleteTemplateItem(tplId, event) {
+  if (event) event.stopPropagation();
+  const tpl = _allTemplates.find(t => t.id === tplId);
+  const name = tpl ? tpl.name : 'this template';
+  if (!confirm(`Are you sure you want to delete "${name}"?`)) return;
+
+  HMC_DB.deleteTemplate(tplId).then(async () => {
+    _allTemplates = await HMC_DB.getTemplates();
+    renderTemplateCategories();
+    renderTemplatesList();
+    showToast(`Template "${name}" deleted.`, 'info');
+  }).catch(err => {
+    showToast('Error deleting template: ' + err.message, 'error');
+  });
+}
+
+async function syncTemplates() {
+  try {
+    _allTemplates = await HMC_DB.getTemplates();
+    renderTemplateCategories();
+    renderTemplatesList();
+    showToast(`Synchronized ${_allTemplates.length} clinical templates!`, 'success');
+  } catch (err) {
+    showToast('Error syncing templates: ' + err.message, 'error');
+  }
+}
+
+// ── ADD / EDIT CLINICAL TEMPLATE MODAL HANDLERS ─────────────────────
+function populateCategoryDatalist() {
+  const dl = document.getElementById('tpl-cat-datalist');
+  if (!dl) return;
+  const standardCats = ['Findings', 'Diagnosis', 'Treatment', 'Investigations', 'Comments', 'Recommendations', 'Advice', 'Ultrasound', 'Obs & Gynae', 'Pediatrics'];
+  const allCats = new Set(standardCats);
+  _allTemplates.forEach(t => { if (t.cat) allCats.add(t.cat); });
+  dl.innerHTML = Array.from(allCats).map(c => `<option value="${escapeHtml(c)}"></option>`).join('');
+}
+
+function openAddTemplateModal(editTplId = null) {
   const modal = document.getElementById('modal-add-template');
   if (!modal) return;
-  document.getElementById('tpl-add-name').value = '';
-  document.getElementById('tpl-add-cat').value = (_activeCategory && _activeCategory !== 'All') ? _activeCategory : 'Findings';
-  document.getElementById('tpl-add-body').value = '';
+
+  populateCategoryDatalist();
+
+  const titleEl = document.getElementById('tpl-modal-title');
+  const idEl = document.getElementById('tpl-add-id');
+  const nameEl = document.getElementById('tpl-add-name');
+  const catEl = document.getElementById('tpl-add-cat');
+  const bodyEl = document.getElementById('tpl-add-body');
+  const delBtn = document.getElementById('tpl-btn-delete');
+  const saveBtn = document.getElementById('tpl-btn-save');
+
+  if (editTplId) {
+    const tpl = _allTemplates.find(t => t.id === editTplId);
+    if (tpl) {
+      if (titleEl) titleEl.textContent = '✏️ Edit Clinical Template';
+      idEl.value = tpl.id;
+      nameEl.value = tpl.name || '';
+      catEl.value = tpl.cat || 'Findings';
+      bodyEl.value = tpl.body || '';
+      if (delBtn) delBtn.style.display = 'inline-flex';
+      if (saveBtn) saveBtn.innerHTML = '💾 Update Template';
+    }
+  } else {
+    if (titleEl) titleEl.textContent = '➕ Add New Clinical Template';
+    idEl.value = '';
+    nameEl.value = '';
+    catEl.value = (_activeCategory && _activeCategory !== 'All') ? _activeCategory : 'Findings';
+    bodyEl.value = '';
+    if (delBtn) delBtn.style.display = 'none';
+    if (saveBtn) saveBtn.innerHTML = '💾 Save Template';
+  }
+
   modal.classList.add('open');
-  setTimeout(() => document.getElementById('tpl-add-name').focus(), 100);
+  setTimeout(() => nameEl.focus(), 100);
 }
 
 function closeAddTemplateModal() {
@@ -677,8 +776,9 @@ function closeAddTemplateModal() {
 }
 
 async function handleSaveNewTemplate() {
+  const id = (document.getElementById('tpl-add-id').value || '').trim();
   const name = (document.getElementById('tpl-add-name').value || '').trim();
-  const cat = document.getElementById('tpl-add-cat').value;
+  const cat = (document.getElementById('tpl-add-cat').value || '').trim() || 'General';
   const body = (document.getElementById('tpl-add-body').value || '').trim();
 
   if (!name || !body) {
@@ -688,6 +788,7 @@ async function handleSaveNewTemplate() {
 
   try {
     await HMC_DB.saveTemplate({
+      id: id || undefined,
       name: name,
       cat: cat,
       body: body
@@ -698,9 +799,28 @@ async function handleSaveNewTemplate() {
     renderTemplateCategories();
     renderTemplatesList();
     closeAddTemplateModal();
-    showToast(`Template "${name}" saved into ${cat}!`, 'success');
+    showToast(`Template "${name}" saved into "${cat}"!`, 'success');
   } catch (err) {
     showToast('Error saving template: ' + err.message, 'error');
+  }
+}
+
+async function handleDeleteCurrentTemplate() {
+  const id = (document.getElementById('tpl-add-id').value || '').trim();
+  if (!id) return;
+  const tpl = _allTemplates.find(t => t.id === id);
+  const name = tpl ? tpl.name : 'this template';
+  if (!confirm(`Are you sure you want to delete "${name}"?`)) return;
+
+  try {
+    await HMC_DB.deleteTemplate(id);
+    _allTemplates = await HMC_DB.getTemplates();
+    renderTemplateCategories();
+    renderTemplatesList();
+    closeAddTemplateModal();
+    showToast(`Template "${name}" deleted.`, 'info');
+  } catch (err) {
+    showToast('Error deleting template: ' + err.message, 'error');
   }
 }
 
