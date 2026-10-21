@@ -549,6 +549,10 @@ body {
   align-items: center;
 }
 
+.rte-dd.open {
+  z-index: 10000;
+}
+
 .rte-dd-btn {
   display: inline-flex;
   align-items: center;
@@ -595,20 +599,23 @@ body {
 
 .rte-dd-panel {
   display: none;
-  position: fixed;
+  position: absolute;
+  top: calc(100% + 3px);
+  left: 0;
   background: #FFFFFF;
-  border: 1px solid var(--border);
+  border: 1.5px solid #CBD5E1;
   border-radius: 6px;
-  box-shadow: 0 4px 18px rgba(0, 0, 0, 0.15);
-  z-index: 99999;
-  max-height: 210px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
+  z-index: 100000;
+  max-height: 220px;
   overflow-y: auto;
   padding: 4px 0;
-  min-width: 110px;
+  min-width: 125px;
 }
 
+.rte-dd.open .rte-dd-panel,
 .rte-dd-panel.open {
-  display: block;
+  display: block !important;
 }
 
 .rte-dd-item {

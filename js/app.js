@@ -405,10 +405,11 @@ function initRichToolbars() {
       <button type="button" class="rte-btn" data-cmd="insertOrderedList" title="Numbered List">1.</button>
     `;
 
-    // Prevent mousedown on toolbar from unfocusing editor
-    toolbar.addEventListener('mousedown', (e) => {
-      e.preventDefault();
-      _activeEditor = editor;
+    toolbar.querySelectorAll('.rte-btn, .rte-dd-btn, .rte-dd-item').forEach(el => {
+      el.addEventListener('mousedown', (e) => {
+        e.preventDefault();
+        _activeEditor = editor;
+      });
     });
 
     const fontBtn = toolbar.querySelector('[data-dd-toggle="font"]');
@@ -420,21 +421,32 @@ function initRichToolbars() {
     const sizeLabel = sizeBtn.querySelector('.rte-dd-label');
 
     fontBtn.addEventListener('click', (e) => {
+      e.preventDefault();
       e.stopPropagation();
-      const isOpen = fontPanel.classList.contains('open');
+      const parent = fontBtn.closest('.rte-dd');
+      const wasOpen = fontPanel.classList.contains('open');
       closeAllRteDropdowns();
-      if (!isOpen) openRtePanel(fontBtn, fontPanel);
+      if (!wasOpen) {
+        fontPanel.classList.add('open');
+        parent.classList.add('open');
+      }
     });
 
     sizeBtn.addEventListener('click', (e) => {
+      e.preventDefault();
       e.stopPropagation();
-      const isOpen = sizePanel.classList.contains('open');
+      const parent = sizeBtn.closest('.rte-dd');
+      const wasOpen = sizePanel.classList.contains('open');
       closeAllRteDropdowns();
-      if (!isOpen) openRtePanel(sizeBtn, sizePanel);
+      if (!wasOpen) {
+        sizePanel.classList.add('open');
+        parent.classList.add('open');
+      }
     });
 
     fontPanel.querySelectorAll('.rte-dd-item').forEach(item => {
       item.addEventListener('click', (e) => {
+        e.preventDefault();
         e.stopPropagation();
         const font = item.getAttribute('data-font');
         fontLabel.textContent = font;
@@ -445,6 +457,7 @@ function initRichToolbars() {
 
     sizePanel.querySelectorAll('.rte-dd-item').forEach(item => {
       item.addEventListener('click', (e) => {
+        e.preventDefault();
         e.stopPropagation();
         const size = item.getAttribute('data-size');
         sizeLabel.textContent = size;
@@ -481,18 +494,16 @@ function initRichToolbars() {
   });
 }
 
-function openRtePanel(btn, panel) {
-  const rect = btn.getBoundingClientRect();
-  panel.style.top = `${rect.bottom + window.scrollY + 2}px`;
-  panel.style.left = `${rect.left + window.scrollX}px`;
-  panel.classList.add('open');
-}
-
 function closeAllRteDropdowns() {
   document.querySelectorAll('.rte-dd-panel.open').forEach(p => p.classList.remove('open'));
+  document.querySelectorAll('.rte-dd.open').forEach(d => d.classList.remove('open'));
 }
 
-document.addEventListener('click', () => closeAllRteDropdowns());
+document.addEventListener('click', (e) => {
+  if (!e.target.closest('.rte-dd')) {
+    closeAllRteDropdowns();
+  }
+});
 
 function applyFontNameToEditor(editor, fontName) {
   editor.focus();
