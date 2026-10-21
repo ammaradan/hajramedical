@@ -14,10 +14,11 @@
 
 #rx-a4-page {
   width: 210mm;
+  height: 297mm;
   min-height: 297mm;
   background: #FFFFFF;
   box-shadow: 0 8px 30px rgba(0,0,0,0.3);
-  padding: 10mm 12mm 10mm 12mm;
+  padding: 8mm 10mm 8mm 10mm;
   box-sizing: border-box;
   display: flex;
   flex-direction: column;
@@ -214,6 +215,7 @@
   font-size: 9.5pt;
   font-weight: 700;
   line-height: 1.3;
+  margin-top: auto;
 }
 
 .rx-signature-block span {
@@ -282,7 +284,7 @@
 @media print {
   @page {
     size: A4 portrait;
-    margin: 8mm 12mm 10mm 12mm;
+    margin: 8mm 10mm 8mm 10mm;
   }
 
   html, body {
@@ -338,23 +340,48 @@
   #rx-a4-page {
     box-shadow: none !important;
     width: 100% !important;
-    min-height: auto !important;
-    max-height: 275mm !important;
-    height: auto !important;
+    height: 280mm !important;
+    min-height: 280mm !important;
+    max-height: 280mm !important;
     padding: 0 !important;
     margin: 0 !important;
     display: flex !important;
     flex-direction: column !important;
+    box-sizing: border-box !important;
     font-size: 10pt !important;
     page-break-inside: avoid !important;
     break-inside: avoid !important;
+    overflow: hidden !important;
   }
 
-  .rx-col-left { flex: 0 0 48% !important; }
-  .rx-col-right { flex: 1 1 auto !important; }
-  .rx-main-body { flex: 1 1 auto !important; min-height: 145mm !important; }
-  .rx-consent-box { flex-shrink: 0 !important; }
-  .rx-footer-strip { flex-shrink: 0 !important; }
+  .rx-col-left {
+    flex: 0 0 48% !important;
+    display: flex !important;
+    flex-direction: column !important;
+  }
+  .rx-col-right {
+    flex: 1 1 auto !important;
+    display: flex !important;
+    flex-direction: column !important;
+  }
+  .rx-main-body {
+    flex: 1 1 auto !important;
+    display: flex !important;
+  }
+  .rx-treatment-area {
+    flex: 1 1 auto !important;
+    display: flex !important;
+    flex-direction: column !important;
+  }
+  .rx-signature-block {
+    margin-top: auto !important;
+  }
+  .rx-consent-box {
+    flex-shrink: 0 !important;
+  }
+  .rx-footer-strip {
+    flex-shrink: 0 !important;
+  }
 
   /* When modal-receipt-preview is open for print */
   #modal-receipt-preview.open {
