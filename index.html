@@ -118,8 +118,8 @@
 
           <div class="form-row" style="grid-template-columns: 1.2fr 1fr 1fr 1fr;">
             <div class="form-group">
-              <label>MR Number / Patient ID</label>
-              <input type="text" id="f-mr" placeholder="HMC-00001" style="font-weight:700;color:var(--teal);" />
+              <label>MR Number</label>
+              <input type="text" id="f-mr" placeholder="MR-00001" style="font-weight:700;color:var(--teal);" />
             </div>
             <div class="form-group">
               <label>Date (PST)</label>
@@ -222,26 +222,18 @@
             <!-- Allergies -->
             <div class="clinical-box">
               <div class="clinical-box-header">
-                <label>Allergies</label>
-                <div class="editor-toolbar">
-                  <button type="button" class="tb-btn" onclick="execEditorCmd('bold')">B</button>
-                  <button type="button" class="tb-btn" onclick="execEditorCmd('italic')">I</button>
-                  <button type="button" class="tb-btn" onclick="execEditorCmd('underline')">U</button>
-                </div>
+                <label>Known Allergies</label>
               </div>
-              <div class="rich-editor" id="ed-allergy" contenteditable="true" placeholder="Known drug or food allergies..."></div>
+              <div class="rte-toolbar" data-target="ed-allergy"></div>
+              <div class="rich-editor" id="ed-allergy" contenteditable="true" placeholder="e.g. Penicillin, Sulfa..."></div>
             </div>
 
             <!-- Presenting Complaints -->
             <div class="clinical-box">
               <div class="clinical-box-header">
-                <label>P/Complaints & History</label>
-                <div class="editor-toolbar">
-                  <button type="button" class="tb-btn" onclick="execEditorCmd('bold')">B</button>
-                  <button type="button" class="tb-btn" onclick="execEditorCmd('italic')">I</button>
-                  <button type="button" class="tb-btn" onclick="execEditorCmd('insertUnorderedList')">•</button>
-                </div>
+                <label>Complaints / Symptoms / History / Condition</label>
               </div>
+              <div class="rte-toolbar" data-target="ed-symptoms"></div>
               <div class="rich-editor" id="ed-symptoms" contenteditable="true" placeholder="Presenting complaints, history of illness..."></div>
             </div>
 
@@ -249,12 +241,8 @@
             <div class="clinical-box">
               <div class="clinical-box-header">
                 <label>Clinical Findings / Examination</label>
-                <div class="editor-toolbar">
-                  <button type="button" class="tb-btn" onclick="execEditorCmd('bold')">B</button>
-                  <button type="button" class="tb-btn" onclick="execEditorCmd('italic')">I</button>
-                  <button type="button" class="tb-btn" onclick="execEditorCmd('insertUnorderedList')">•</button>
-                </div>
               </div>
+              <div class="rte-toolbar" data-target="ed-findings"></div>
               <div class="rich-editor" id="ed-findings" contenteditable="true" placeholder="General physical & systemic examination..."></div>
             </div>
 
@@ -262,11 +250,8 @@
             <div class="clinical-box">
               <div class="clinical-box-header">
                 <label>Comments / Clinical Advice</label>
-                <div class="editor-toolbar">
-                  <button type="button" class="tb-btn" onclick="execEditorCmd('bold')">B</button>
-                  <button type="button" class="tb-btn" onclick="execEditorCmd('italic')">I</button>
-                </div>
               </div>
+              <div class="rte-toolbar" data-target="ed-comments"></div>
               <div class="rich-editor" id="ed-comments" contenteditable="true" placeholder="Special precautions, diet, bed rest advice..."></div>
             </div>
 
@@ -274,39 +259,26 @@
             <div class="clinical-box">
               <div class="clinical-box-header">
                 <label>Investigations / Lab Tests Advised</label>
-                <div class="editor-toolbar">
-                  <button type="button" class="tb-btn" onclick="execEditorCmd('bold')">B</button>
-                  <button type="button" class="tb-btn" onclick="execEditorCmd('italic')">I</button>
-                  <button type="button" class="tb-btn" onclick="execEditorCmd('insertUnorderedList')">•</button>
-                </div>
               </div>
+              <div class="rte-toolbar" data-target="ed-investigations"></div>
               <div class="rich-editor" id="ed-investigations" contenteditable="true" placeholder="CBC, Blood Sugar, Ultrasound, X-Ray, LFT, RFT..."></div>
             </div>
 
             <!-- Provisional / Final Diagnosis -->
             <div class="clinical-box">
               <div class="clinical-box-header">
-                <label>Provisional / Final Diagnosis</label>
-                <div class="editor-toolbar">
-                  <button type="button" class="tb-btn" onclick="execEditorCmd('bold')">B</button>
-                  <button type="button" class="tb-btn" onclick="execEditorCmd('italic')">I</button>
-                </div>
+                <label>Provisional / Diagnosis</label>
               </div>
-              <div class="rich-editor" id="ed-diagnosis" contenteditable="true" placeholder="Diagnosis (click Clinical Templates to auto-insert)..." style="font-weight:600;color:var(--navy);"></div>
+              <div class="rte-toolbar" data-target="ed-diagnosis"></div>
+              <div class="rich-editor" id="ed-diagnosis" contenteditable="true" placeholder="Provisional or confirmed diagnosis..." style="font-weight:600;color:var(--navy);"></div>
             </div>
 
             <!-- Treatment / Rx Prescription -->
             <div class="clinical-box full-width">
               <div class="clinical-box-header">
                 <label style="font-size:14px;color:var(--teal);">Rx Treatment / Prescription</label>
-                <div class="editor-toolbar">
-                  <button type="button" class="tb-btn" onclick="execEditorCmd('bold')">B</button>
-                  <button type="button" class="tb-btn" onclick="execEditorCmd('italic')">I</button>
-                  <button type="button" class="tb-btn" onclick="execEditorCmd('underline')">U</button>
-                  <button type="button" class="tb-btn" onclick="execEditorCmd('insertUnorderedList')">• List</button>
-                  <button type="button" class="tb-btn" style="width:auto;padding:0 6px;" onclick="execEditorCmd('removeFormat')">Clear Format</button>
-                </div>
               </div>
+              <div class="rte-toolbar" data-target="ed-treatment"></div>
               <div class="rich-editor treatment-editor" id="ed-treatment" contenteditable="true" placeholder="Type medicines, dosages, duration, instructions or insert from Clinical Templates..."></div>
             </div>
           </div>
@@ -314,7 +286,7 @@
           <!-- Revisit after -->
           <div style="margin-top:14px;display:flex;align-items:center;gap:10px;">
             <label style="font-weight:600;font-size:12.5px;">Revisit After (Days):</label>
-            <input type="text" id="f-revisit" placeholder="e.g. 5" style="width:90px;padding:6px 10px;border:1.5px solid var(--border);border-radius:var(--radius-sm);font-weight:700;" />
+            <input type="text" id="f-revisit" placeholder="e.g. 7" style="width:90px;padding:6px 10px;border:1.5px solid var(--border);border-radius:var(--radius-sm);font-weight:700;" />
           </div>
         </div>
 
@@ -338,6 +310,13 @@
 
       <!-- Templates Items List -->
       <div class="tpl-list-content" id="tpl-items-list"></div>
+
+      <!-- Add Template Footer Button -->
+      <div style="padding:10px 16px;border-top:1px solid var(--border);background:#F8FAFC;">
+        <button type="button" class="tpl-add-btn" onclick="openAddTemplateModal()">
+          <span>➕</span> Add Template
+        </button>
+      </div>
     </aside>
 
   </div><!-- /app-container -->
@@ -345,38 +324,34 @@
   <!-- ── STICKY ACTIONS BAR ────────────────────────────────────────── -->
   <footer class="action-bar-bottom no-print">
     <div class="action-buttons">
-      <button class="btn btn-save" id="btn-save-record" onclick="handleSavePatient()">
+      <button type="button" class="btn btn-save" id="btn-save-record" onclick="handleSavePatient()" title="Save Patient Record">
         <span>💾</span> Save Record
       </button>
 
-      <button class="btn btn-update" id="btn-update-record" onclick="handleUpdatePatient()" style="display:none;">
-        <span>🔄</span> Update Record
+      <button type="button" class="btn btn-newvisit" id="btn-new-visit" onclick="handleSaveNewVisit()" title="Save as New Visit under same MR Number">
+        <span>➕</span> Save as New Visit
       </button>
 
-      <button class="btn btn-outline" id="btn-new-visit" onclick="handleStartNewVisit()" style="display:none;">
-        <span>➕</span> New Visit
+      <button type="button" class="btn btn-print-rx" id="btn-print-rx" onclick="openPrescriptionPreview(true)" title="Print Prescription (A4)">
+        <span>🖨</span> Print Rx
       </button>
 
-      <button class="btn btn-preview" onclick="openPrescriptionPreview(false)">
-        <span>👁</span> Preview Prescription
+      <button type="button" class="btn btn-print-free" id="btn-print-free" onclick="handleWalkInPrint()" title="Print Without Saving to Database">
+        <span>📄</span> Print Without Saving
       </button>
 
-      <button class="btn btn-print" onclick="openPrescriptionPreview(true)">
-        <span>🖨</span> Print Prescription
-      </button>
-
-      <button class="btn btn-walkin" onclick="handleWalkInPrint()">
-        <span>⚡</span> Print Walk-in
+      <button type="button" class="btn btn-clear" id="btn-clear" onclick="resetFormToNew()" title="Clear form for a new patient">
+        <span>✕</span> Clear Form
       </button>
     </div>
 
     <div class="action-buttons">
-      <button class="btn btn-outline" id="btn-view-history" onclick="openPatientHistoryModal()" style="display:none;">
-        <span>📋</span> Visit History
+      <button type="button" class="btn btn-preview" onclick="openPrescriptionPreview(false)" title="Preview Prescription">
+        <span>👁</span> Preview Rx
       </button>
 
-      <button class="btn btn-outline" onclick="resetFormToNew()">
-        <span>✕</span> Clear Form
+      <button type="button" class="btn btn-outline" id="btn-view-history" onclick="openPatientHistoryModal()" style="display:none;" title="View Patient Visit History">
+        <span>📋</span> Visit History
       </button>
     </div>
   </footer>
@@ -843,6 +818,43 @@
             <button class="btn btn-outline" style="font-size:12px;" onclick="handleChangePassword()">🔑 Change Access Password</button>
           </div>
         </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── MODAL: ADD CLINICAL TEMPLATE ─────────────────────────────── -->
+  <div class="modal-backdrop" id="modal-add-template">
+    <div class="modal-card" style="max-width:540px;">
+      <div class="modal-header">
+        <h2>➕ Add New Clinical Template</h2>
+        <button class="modal-close" onclick="closeAddTemplateModal()">✕</button>
+      </div>
+      <div class="modal-body">
+        <form id="form-add-template" onsubmit="event.preventDefault(); handleSaveNewTemplate();">
+          <div class="form-group" style="margin-bottom:14px;">
+            <label>Template Title / Name *</label>
+            <input type="text" id="tpl-add-name" placeholder="e.g. Pregnancy OBS, Renal Calculus, Gastritis..." required style="font-weight:600;" />
+          </div>
+          <div class="form-group" style="margin-bottom:14px;">
+            <label>Category *</label>
+            <select id="tpl-add-cat">
+              <option value="Findings">Findings</option>
+              <option value="Diagnosis">Diagnosis</option>
+              <option value="Treatment">Treatment</option>
+              <option value="Investigations">Investigations</option>
+              <option value="Comments">Comments</option>
+              <option value="Recommendations">Recommendations</option>
+            </select>
+          </div>
+          <div class="form-group" style="margin-bottom:16px;">
+            <label>Template Content / Text *</label>
+            <textarea id="tpl-add-body" rows="6" placeholder="Enter findings, prescription, dosage, or clinical text to insert..." required style="width:100%;padding:10px;border:1.5px solid var(--border);border-radius:var(--radius-sm);font-family:inherit;font-size:13px;resize:vertical;outline:none;"></textarea>
+          </div>
+          <div style="display:flex;justify-content:flex-end;gap:10px;">
+            <button type="button" class="btn btn-outline" onclick="closeAddTemplateModal()">Cancel</button>
+            <button type="submit" class="btn btn-save">💾 Save Template</button>
+          </div>
+        </form>
       </div>
     </div>
   </div>

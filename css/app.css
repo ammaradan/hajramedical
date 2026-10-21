@@ -520,6 +520,7 @@ body {
   display: flex;
   justify-content: space-between;
   align-items: center;
+  margin-bottom: 2px;
 }
 
 .clinical-box-header label {
@@ -528,53 +529,159 @@ body {
   color: var(--navy);
 }
 
-.editor-toolbar {
-  display: flex;
-  gap: 2px;
-  background: #F1F5F9;
-  padding: 3px 5px;
-  border-radius: 4px;
-  border: 1px solid var(--border);
-}
-
-.tb-btn {
-  background: transparent;
-  border: none;
-  font-size: 11px;
-  font-weight: 700;
-  width: 22px;
-  height: 22px;
-  border-radius: 3px;
-  cursor: pointer;
-  color: var(--text-muted);
+/* ── ADVANCED RICH TEXT TOOLBAR & DROPDOWNS ── */
+.rte-toolbar {
   display: flex;
   align-items: center;
-  justify-content: center;
+  gap: 2px;
+  background: #F4F7F6;
+  border: 1.5px solid var(--border);
+  border-bottom: 1px solid #D6E4E1;
+  border-radius: var(--radius-sm) var(--radius-sm) 0 0;
+  padding: 3px 6px;
+  flex-wrap: wrap;
+  user-select: none;
 }
 
-.tb-btn:hover {
+.rte-dd {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+}
+
+.rte-dd-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: space-between;
+  background: #FFFFFF;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 2px 6px;
+  font-size: 11.5px;
+  font-family: inherit;
+  color: var(--text-main);
+  cursor: pointer;
+  height: 24px;
+  white-space: nowrap;
+  user-select: none;
+  transition: border-color 0.15s;
+}
+
+.rte-dd-btn:hover {
+  border-color: var(--teal);
+}
+
+.rte-dd-arrow {
+  font-size: 8px;
+  color: var(--text-light);
+  margin-left: 4px;
+  flex-shrink: 0;
+}
+
+.rte-dd-font .rte-dd-btn {
+  width: 95px;
+}
+
+.rte-dd-size .rte-dd-btn {
+  width: 55px;
+}
+
+.rte-dd-label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  flex: 1;
+}
+
+.rte-dd-panel {
+  display: none;
+  position: fixed;
+  background: #FFFFFF;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  box-shadow: 0 4px 18px rgba(0, 0, 0, 0.15);
+  z-index: 99999;
+  max-height: 210px;
+  overflow-y: auto;
+  padding: 4px 0;
+  min-width: 110px;
+}
+
+.rte-dd-panel.open {
+  display: block;
+}
+
+.rte-dd-item {
+  padding: 5px 10px;
+  font-size: 12px;
+  color: var(--text-main);
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background 0.1s;
+}
+
+.rte-dd-item:hover,
+.rte-dd-item.active {
+  background: var(--teal-subtle);
+  color: var(--teal);
+  font-weight: 600;
+}
+
+.rte-btn {
+  border: 1px solid transparent;
+  background: transparent;
+  border-radius: 4px;
+  padding: 2px 6px;
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1;
+  cursor: pointer;
+  color: var(--text-main);
+  min-width: 24px;
+  height: 24px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.1s;
+}
+
+.rte-btn:hover {
   background: #E2E8F0;
-  color: var(--navy);
+}
+
+.rte-btn:active,
+.rte-btn.active {
+  background: var(--teal);
+  color: #fff;
+}
+
+.rte-sep {
+  width: 1px;
+  height: 16px;
+  background: var(--border);
+  margin: 0 3px;
+  display: inline-block;
 }
 
 .rich-editor {
-  min-height: 80px;
-  max-height: 220px;
+  min-height: 85px;
+  max-height: 240px;
   overflow-y: auto;
   border: 1.5px solid var(--border);
-  border-radius: var(--radius-sm);
-  padding: 8px 10px;
+  border-top: none;
+  border-radius: 0 0 var(--radius-sm) var(--radius-sm);
+  padding: 10px 12px;
   font-size: 13px;
   outline: none;
   background: #fff;
-  line-height: 1.4;
+  line-height: 1.45;
   white-space: pre-wrap;
   word-break: break-word;
 }
 
 .rich-editor:focus {
   border-color: var(--teal);
-  box-shadow: 0 0 0 3px rgba(0,128,96,0.08);
+  box-shadow: 0 0 0 2px rgba(45, 125, 111, 0.12);
 }
 
 .rich-editor.treatment-editor {
@@ -625,11 +732,39 @@ body {
 }
 
 .btn-save {
-  background: var(--teal);
+  background: #2D7D6F;
   color: #fff;
-  box-shadow: 0 2px 6px rgba(0,128,96,0.25);
+  box-shadow: 0 2px 6px rgba(45, 125, 111, 0.25);
 }
-.btn-save:hover { background: var(--teal-light); transform: translateY(-1px); }
+.btn-save:hover { background: #246459; transform: translateY(-1px); }
+
+.btn-newvisit {
+  background: #5EAAA8;
+  color: #fff;
+  box-shadow: 0 2px 6px rgba(94, 170, 168, 0.25);
+}
+.btn-newvisit:hover { background: #4D8F8D; transform: translateY(-1px); }
+
+.btn-print-rx {
+  background: #9B72AA;
+  color: #fff;
+  box-shadow: 0 2px 6px rgba(155, 114, 170, 0.25);
+}
+.btn-print-rx:hover { background: #855C94; transform: translateY(-1px); }
+
+.btn-print-free {
+  background: #D37107;
+  color: #fff;
+  box-shadow: 0 2px 6px rgba(211, 113, 7, 0.25);
+}
+.btn-print-free:hover { background: #B96000; transform: translateY(-1px); }
+
+.btn-clear {
+  background: #FFFFFF;
+  border: 1.5px solid #C8D8D4;
+  color: var(--text-main);
+}
+.btn-clear:hover { background: #F4F7F6; border-color: #2D7D6F; }
 
 .btn-update {
   background: #2563EB;
@@ -661,6 +796,26 @@ body {
   color: var(--text-main);
 }
 .btn-outline:hover { background: #F8FAFC; border-color: var(--navy); }
+
+.tpl-add-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  width: 100%;
+  padding: 10px;
+  background: #2D7D6F;
+  color: #FFFFFF;
+  border: none;
+  border-radius: var(--radius-sm);
+  font-weight: 700;
+  font-size: 13px;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+.tpl-add-btn:hover {
+  background: #246459;
+}
 
 /* ── RIGHT CLINICAL TEMPLATES FLYOUT ───────────────────────────── */
 .templates-panel {

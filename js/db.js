@@ -122,16 +122,16 @@ async function getNextMRNumber() {
       const keys = req.result || [];
       let maxNum = 0;
       keys.forEach(k => {
-        const m = String(k).match(/(?:HMC|PAT|MR)-(\d+)/i);
+        const m = String(k).match(/(?:MR|HMC|PAT)-(\d+)/i);
         if (m) {
           const n = parseInt(m[1], 10);
           if (n > maxNum) maxNum = n;
         }
       });
-      const nextId = 'HMC-' + String(maxNum + 1).padStart(5, '0');
+      const nextId = 'MR-' + String(maxNum + 1).padStart(5, '0');
       resolve(nextId);
     };
-    req.onerror = () => resolve('HMC-00001');
+    req.onerror = () => resolve('MR-00001');
   });
 }
 
@@ -324,6 +324,11 @@ async function searchPatients(query) {
       const all = req.result || [];
       const map = new Map();
 
+      const visitCounts = {};
+      all.forEach(v => {
+        visitCounts[v.mrNumber] = (visitCounts[v.mrNumber] || 0) + 1;
+      });
+
       // Search across visits and deduplicate by MR (picking latest visit)
       all.forEach(v => {
         const name = (v.name || '').toLowerCase();
@@ -334,7 +339,8 @@ async function searchPatients(query) {
 
         if (name.includes(q) || mr.includes(q) || ph.includes(q) || addr.includes(q) || cnic.includes(q)) {
           if (!map.has(v.mrNumber) || (v.visitNo > (map.get(v.mrNumber).visitNo || 0))) {
-            map.set(v.mrNumber, v);
+            const item = Object.assign({}, v, { totalVisits: visitCounts[v.mrNumber] || 1 });
+            map.set(v.mrNumber, item);
           }
         }
       });

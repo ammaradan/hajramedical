@@ -49,6 +49,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     updateClock();
 
     setupRichEditors();
+    initRichToolbars();
     setupTemplatesUI();
     setupSearchListeners();
     setupModals();
@@ -83,11 +84,9 @@ async function resetFormToNew() {
   document.getElementById('f-gender').value = 'Male';
   document.getElementById('f-relation').value = 'S/O';
 
-  // Toggle update vs save button
-  document.getElementById('btn-save-record').style.display = 'inline-flex';
-  document.getElementById('btn-update-record').style.display = 'none';
-  document.getElementById('btn-new-visit').style.display = 'none';
-  document.getElementById('btn-view-history').style.display = 'none';
+  // Keep action buttons ready
+  const histBtn = document.getElementById('btn-view-history');
+  if (histBtn) histBtn.style.display = 'none';
 }
 
 function getFormData() {
@@ -154,10 +153,8 @@ function populateForm(data) {
   document.getElementById('f-revisit').value = data.revisit || '';
 
   _currentMode = 'edit';
-  document.getElementById('btn-save-record').style.display = 'none';
-  document.getElementById('btn-update-record').style.display = 'inline-flex';
-  document.getElementById('btn-new-visit').style.display = 'inline-flex';
-  document.getElementById('btn-view-history').style.display = 'inline-flex';
+  const histBtn = document.getElementById('btn-view-history');
+  if (histBtn) histBtn.style.display = 'inline-flex';
 }
 
 async function handleSavePatient() {
@@ -169,16 +166,20 @@ async function handleSavePatient() {
   }
 
   try {
-    const res = await HMC_DB.savePatientRecord(data);
-    _currentSerialNo = res.serialNo;
-    _currentMode = 'edit';
+    if (_currentSerialNo) {
+      await HMC_DB.updatePatientRecord(data);
+      showToast(`Record updated: ${data.name} (${data.mrNumber}, Visit #${data.visitNo})`, 'success');
+    } else {
+      const res = await HMC_DB.savePatientRecord(data);
+      _currentSerialNo = res.serialNo;
+      _currentMode = 'edit';
+      showToast(`Saved! MR: ${res.mrNumber} (Visit #${res.visitNo})`, 'success');
+    }
 
-    document.getElementById('btn-save-record').style.display = 'none';
-    document.getElementById('btn-update-record').style.display = 'inline-flex';
-    document.getElementById('btn-new-visit').style.display = 'inline-flex';
-    document.getElementById('btn-view-history').style.display = 'inline-flex';
+    _currentPatientVisits = await HMC_DB.getPatientVisits(data.mrNumber);
+    const histBtn = document.getElementById('btn-view-history');
+    if (histBtn) histBtn.style.display = 'inline-flex';
 
-    showToast(`Saved! MR: ${res.mrNumber} (Visit #${res.visitNo})`, 'success');
     await refreshSidebarStats();
     await refreshRecentPatientsList();
   } catch (err) {
@@ -201,37 +202,55 @@ async function handleUpdatePatient() {
   }
 }
 
+async function handleSaveNewVisit() {
+  const data = getFormData();
+  if (!data.name) {
+    showToast('Please enter or select a patient first.', 'error');
+    document.getElementById('f-name').focus();
+    return;
+  }
+
+  const mr = (data.mrNumber || '').trim();
+  if (!mr) {
+    showToast('Patient MR Number is required.', 'error');
+    return;
+  }
+
+  try {
+    const existingVisits = await HMC_DB.getPatientVisits(mr);
+    let nextVisitNo = 2;
+    if (existingVisits && existingVisits.length > 0) {
+      const maxV = Math.max(...existingVisits.map(v => parseInt(v.visitNo, 10) || 1));
+      nextVisitNo = maxV + 1;
+    }
+
+    data.visitNo = nextVisitNo;
+    data.date = HMC_DB.getPSTDate();
+    data.time = HMC_DB.getPSTTime();
+    data.serialNo = null; // Forces new visit record in visits store
+
+    const res = await HMC_DB.savePatientRecord(data);
+    _currentSerialNo = res.serialNo;
+    _currentMode = 'edit';
+
+    document.getElementById('f-visit').value = nextVisitNo;
+    document.getElementById('f-date').value = data.date;
+    document.getElementById('f-time').value = data.time;
+
+    _currentPatientVisits = await HMC_DB.getPatientVisits(mr);
+    const histBtn = document.getElementById('btn-view-history');
+    if (histBtn) histBtn.style.display = 'inline-flex';
+
+    showToast(`Saved as New Visit #${nextVisitNo} for ${data.name}! Total visits: ${_currentPatientVisits.length}`, 'success');
+    await refreshSidebarStats();
+    await refreshRecentPatientsList();
+  } catch (err) {
+    showToast('Error saving new visit: ' + err.message, 'error');
+  }
+}
+
 async function handleStartNewVisit() {
-  const currentData = getFormData();
-  const mr = currentData.mrNumber;
-  if (!mr) return resetFormToNew();
-
-  const visits = await HMC_DB.getPatientVisits(mr);
-  const nextVisitNo = visits.length + 1;
-
-  // Keep demographic info, clear current visit complaints and vitals
-  document.getElementById('f-date').value = HMC_DB.getPSTDate();
-  document.getElementById('f-time').value = HMC_DB.getPSTTime();
-  document.getElementById('f-visit').value = nextVisitNo;
-
-  document.getElementById('f-temp').value = '';
-  document.getElementById('f-bp').value = '';
-  document.getElementById('f-rr').value = '';
-  document.getElementById('f-pulse').value = '';
-
-  document.getElementById('ed-symptoms').innerHTML = '';
-  document.getElementById('ed-findings').innerHTML = '';
-  document.getElementById('ed-comments').innerHTML = '';
-  document.getElementById('ed-investigations').innerHTML = '';
-  document.getElementById('ed-diagnosis').innerHTML = '';
-  document.getElementById('ed-treatment').innerHTML = '';
-  document.getElementById('f-revisit').value = '';
-
-  _currentSerialNo = null;
-  _currentMode = 'new';
-  document.getElementById('btn-save-record').style.display = 'inline-flex';
-  document.getElementById('btn-update-record').style.display = 'none';
-  showToast(`New Visit #${nextVisitNo} prepared for ${currentData.name}.`, 'info');
+  return handleSaveNewVisit();
 }
 
 // ── SEARCH & SIDEBAR ────────────────────────────────────────────────
@@ -265,8 +284,8 @@ function setupSearchListeners() {
           <div class="pcm-meta">
             ${p.age ? p.age + 'y ' : ''}${p.gender || ''} ${p.phone ? '· ' + p.phone : ''}
           </div>
-          <div style="font-size:10.5px;color:var(--teal);margin-top:2px;">
-            Visit #${p.visitNo} · ${p.date}
+          <div style="font-size:10.5px;color:var(--teal);margin-top:2px;font-weight:700;">
+            Visit #${p.visitNo} ${p.totalVisits > 1 ? `(${p.totalVisits} visits on record)` : ''} · ${p.date}
           </div>
         </div>
       `).join('');
@@ -278,7 +297,9 @@ async function loadPatientBySerial(serialNo) {
   const rec = await HMC_DB.getVisitBySerial(serialNo);
   if (rec) {
     populateForm(rec);
-    showToast(`Loaded: ${rec.name} (${rec.mrNumber})`, 'success');
+    _currentPatientVisits = await HMC_DB.getPatientVisits(rec.mrNumber);
+    const totalV = _currentPatientVisits.length;
+    showToast(`Loaded: ${rec.name} (${rec.mrNumber}) — Visit #${rec.visitNo} of ${totalV}`, 'success');
   }
 }
 
@@ -312,7 +333,10 @@ async function refreshRecentPatientsList() {
   `).join('');
 }
 
-// ── RICH TEXT EDITORS ───────────────────────────────────────────────
+// ── RICH TEXT TOOLBARS & EDITORS ────────────────────────────────────
+const RTE_FONTS = ['Calibri', 'Segoe UI', 'Arial', 'Times New Roman', 'Tahoma', 'Verdana', 'Courier New'];
+const RTE_SIZES = ['11px', '12px', '13px', '14px', '16px', '18px', '20px'];
+
 function setupRichEditors() {
   document.querySelectorAll('.rich-editor').forEach(editor => {
     editor.addEventListener('focus', () => {
@@ -334,6 +358,171 @@ function setupRichEditors() {
         }
       }
     });
+  });
+}
+
+function initRichToolbars() {
+  document.querySelectorAll('.rte-toolbar[data-target]').forEach(toolbar => {
+    const targetId = toolbar.getAttribute('data-target');
+    const editor = document.getElementById(targetId);
+    if (!editor) return;
+
+    toolbar.innerHTML = `
+      <div class="rte-dd rte-dd-font">
+        <button type="button" class="rte-dd-btn" data-dd-toggle="font" title="Font Family">
+          <span class="rte-dd-label">Calibri</span>
+          <span class="rte-dd-arrow">▼</span>
+        </button>
+        <div class="rte-dd-panel" data-dd-panel="font">
+          ${RTE_FONTS.map(f => `<div class="rte-dd-item" data-font="${f}" style="font-family:'${f}';">${f}</div>`).join('')}
+        </div>
+      </div>
+
+      <div class="rte-dd rte-dd-size">
+        <button type="button" class="rte-dd-btn" data-dd-toggle="size" title="Font Size">
+          <span class="rte-dd-label">13px</span>
+          <span class="rte-dd-arrow">▼</span>
+        </button>
+        <div class="rte-dd-panel" data-dd-panel="size">
+          ${RTE_SIZES.map(s => `<div class="rte-dd-item" data-size="${s}">${s}</div>`).join('')}
+        </div>
+      </div>
+
+      <div class="rte-sep" style="width:1px;height:18px;background:var(--border);margin:0 3px;"></div>
+
+      <button type="button" class="rte-btn" data-cmd="bold" title="Bold (Ctrl+B)"><strong>B</strong></button>
+      <button type="button" class="rte-btn" data-cmd="italic" title="Italic (Ctrl+I)"><em>I</em></button>
+      <button type="button" class="rte-btn" data-cmd="underline" title="Underline (Ctrl+U)"><u>U</u></button>
+
+      <div class="rte-sep" style="width:1px;height:18px;background:var(--border);margin:0 3px;"></div>
+
+      <button type="button" class="rte-btn" data-cmd="sizeUp" title="Increase Font Size">A+</button>
+      <button type="button" class="rte-btn" data-cmd="sizeDown" title="Decrease Font Size">A−</button>
+
+      <div class="rte-sep" style="width:1px;height:18px;background:var(--border);margin:0 3px;"></div>
+
+      <button type="button" class="rte-btn" data-cmd="insertUnorderedList" title="Bullet List">•</button>
+      <button type="button" class="rte-btn" data-cmd="insertOrderedList" title="Numbered List">1.</button>
+    `;
+
+    // Prevent mousedown on toolbar from unfocusing editor
+    toolbar.addEventListener('mousedown', (e) => {
+      e.preventDefault();
+      _activeEditor = editor;
+    });
+
+    const fontBtn = toolbar.querySelector('[data-dd-toggle="font"]');
+    const fontPanel = toolbar.querySelector('[data-dd-panel="font"]');
+    const fontLabel = fontBtn.querySelector('.rte-dd-label');
+
+    const sizeBtn = toolbar.querySelector('[data-dd-toggle="size"]');
+    const sizePanel = toolbar.querySelector('[data-dd-panel="size"]');
+    const sizeLabel = sizeBtn.querySelector('.rte-dd-label');
+
+    fontBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const isOpen = fontPanel.classList.contains('open');
+      closeAllRteDropdowns();
+      if (!isOpen) openRtePanel(fontBtn, fontPanel);
+    });
+
+    sizeBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const isOpen = sizePanel.classList.contains('open');
+      closeAllRteDropdowns();
+      if (!isOpen) openRtePanel(sizeBtn, sizePanel);
+    });
+
+    fontPanel.querySelectorAll('.rte-dd-item').forEach(item => {
+      item.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const font = item.getAttribute('data-font');
+        fontLabel.textContent = font;
+        applyFontNameToEditor(editor, font);
+        closeAllRteDropdowns();
+      });
+    });
+
+    sizePanel.querySelectorAll('.rte-dd-item').forEach(item => {
+      item.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const size = item.getAttribute('data-size');
+        sizeLabel.textContent = size;
+        applyFontSizeToEditor(editor, size);
+        closeAllRteDropdowns();
+      });
+    });
+
+    toolbar.querySelectorAll('.rte-btn[data-cmd]').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const cmd = btn.getAttribute('data-cmd');
+        editor.focus();
+        _activeEditor = editor;
+
+        if (cmd === 'sizeUp') {
+          const curSize = sizeLabel.textContent || '13px';
+          const idx = RTE_SIZES.indexOf(curSize);
+          const nextIdx = Math.min(RTE_SIZES.length - 1, idx + 1);
+          const nextSize = RTE_SIZES[nextIdx];
+          sizeLabel.textContent = nextSize;
+          applyFontSizeToEditor(editor, nextSize);
+        } else if (cmd === 'sizeDown') {
+          const curSize = sizeLabel.textContent || '13px';
+          const idx = RTE_SIZES.indexOf(curSize);
+          const prevIdx = Math.max(0, idx - 1);
+          const prevSize = RTE_SIZES[prevIdx];
+          sizeLabel.textContent = prevSize;
+          applyFontSizeToEditor(editor, prevSize);
+        } else {
+          document.execCommand(cmd, false, null);
+        }
+      });
+    });
+  });
+}
+
+function openRtePanel(btn, panel) {
+  const rect = btn.getBoundingClientRect();
+  panel.style.top = `${rect.bottom + window.scrollY + 2}px`;
+  panel.style.left = `${rect.left + window.scrollX}px`;
+  panel.classList.add('open');
+}
+
+function closeAllRteDropdowns() {
+  document.querySelectorAll('.rte-dd-panel.open').forEach(p => p.classList.remove('open'));
+}
+
+document.addEventListener('click', () => closeAllRteDropdowns());
+
+function applyFontNameToEditor(editor, fontName) {
+  editor.focus();
+  document.execCommand('fontName', false, fontName);
+}
+
+function applyFontSizeToEditor(editor, sizePx) {
+  editor.focus();
+  const sel = window.getSelection();
+  if (!sel || sel.rangeCount === 0) return;
+  const range = sel.getRangeAt(0);
+
+  if (range.collapsed) {
+    const span = document.createElement('span');
+    span.style.fontSize = sizePx;
+    span.innerHTML = '&#8203;';
+    range.insertNode(span);
+    range.setStartAfter(span);
+    range.collapse(true);
+    sel.removeAllRanges();
+    sel.addRange(range);
+    return;
+  }
+
+  document.execCommand('styleWithCSS', false, false);
+  document.execCommand('fontSize', false, '7');
+  const fontEls = editor.querySelectorAll('font[size="7"]');
+  fontEls.forEach(el => {
+    el.removeAttribute('size');
+    el.style.fontSize = sizePx;
   });
 }
 
@@ -469,6 +658,50 @@ function insertTemplateText(tplId) {
     target.innerHTML += (target.innerHTML.trim() ? '<br>' : '') + textToInsert.replace(/\n/g, '<br>');
   }
   showToast(`Inserted into ${target.previousElementSibling ? target.previousElementSibling.innerText : 'field'}: ${tpl.name}`, 'info');
+}
+
+// ── ADD CLINICAL TEMPLATE MODAL HANDLERS ────────────────────────────
+function openAddTemplateModal() {
+  const modal = document.getElementById('modal-add-template');
+  if (!modal) return;
+  document.getElementById('tpl-add-name').value = '';
+  document.getElementById('tpl-add-cat').value = (_activeCategory && _activeCategory !== 'All') ? _activeCategory : 'Findings';
+  document.getElementById('tpl-add-body').value = '';
+  modal.classList.add('open');
+  setTimeout(() => document.getElementById('tpl-add-name').focus(), 100);
+}
+
+function closeAddTemplateModal() {
+  const modal = document.getElementById('modal-add-template');
+  if (modal) modal.classList.remove('open');
+}
+
+async function handleSaveNewTemplate() {
+  const name = (document.getElementById('tpl-add-name').value || '').trim();
+  const cat = document.getElementById('tpl-add-cat').value;
+  const body = (document.getElementById('tpl-add-body').value || '').trim();
+
+  if (!name || !body) {
+    showToast('Please enter both template title and content.', 'error');
+    return;
+  }
+
+  try {
+    await HMC_DB.saveTemplate({
+      name: name,
+      cat: cat,
+      body: body
+    });
+
+    _allTemplates = await HMC_DB.getTemplates();
+    _activeCategory = cat;
+    renderTemplateCategories();
+    renderTemplatesList();
+    closeAddTemplateModal();
+    showToast(`Template "${name}" saved into ${cat}!`, 'success');
+  } catch (err) {
+    showToast('Error saving template: ' + err.message, 'error');
+  }
 }
 
 // ── COLLAPSIBLE DASHBOARD STATS ─────────────────────────────────────
