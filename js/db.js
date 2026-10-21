@@ -708,11 +708,24 @@ async function deleteAppointment(apptId) {
 async function getTemplates() {
   const db = await initDB();
   return new Promise((resolve) => {
-    const tx = db.transaction('templates', 'readonly');
+    const tx = db.transaction('templates', 'readwrite');
     const store = tx.objectStore('templates');
     const req = store.getAll();
-    req.onsuccess = () => resolve(req.result || []);
-    req.onerror = () => resolve([]);
+    req.onsuccess = () => {
+      let list = req.result || [];
+      const defaults = window.DEFAULT_CLINICAL_TEMPLATES || window.CLINICAL_TEMPLATES || [];
+      if (defaults.length > 0) {
+        const existingIds = new Set(list.map(t => t.id));
+        defaults.forEach(defTpl => {
+          if (!existingIds.has(defTpl.id)) {
+            store.put(defTpl);
+            list.push(defTpl);
+          }
+        });
+      }
+      resolve(list);
+    };
+    req.onerror = () => resolve(window.DEFAULT_CLINICAL_TEMPLATES || window.CLINICAL_TEMPLATES || []);
   });
 }
 

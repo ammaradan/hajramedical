@@ -272,52 +272,89 @@
     color: #000000 !important;
     padding: 0 !important;
     margin: 0 !important;
+    width: 100% !important;
   }
 
-  /* Hide everything except the print container */
-  body > *:not(#print-rx-container):not(#print-receipt-container) {
-    display: none !important;
-    visibility: hidden !important;
-  }
-
+  /* Hide standard UI elements during print */
   .no-print,
   .app-header,
   .action-bar-bottom,
   .sidebar,
   .templates-panel,
-  .modal-backdrop:not(.printing) {
+  .modal-backdrop:not(.open),
+  .modal-header,
+  .modal-footer {
     display: none !important;
+    visibility: hidden !important;
   }
 
-  #print-rx-container {
+  /* When modal-rx-preview is open for print */
+  #modal-rx-preview.open {
     display: block !important;
-    position: absolute !important;
-    left: 0 !important;
-    top: 0 !important;
-    width: 100% !important;
-    height: 100% !important;
-    margin: 0 !important;
+    position: static !important;
+    background: transparent !important;
     padding: 0 !important;
-    background: white !important;
+    margin: 0 !important;
+    width: 100% !important;
+    box-shadow: none !important;
+  }
+
+  #modal-rx-preview.open .modal-card {
+    box-shadow: none !important;
+    border: none !important;
+    max-width: 100% !important;
+    max-height: none !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    background: transparent !important;
+    width: 100% !important;
+  }
+
+  #modal-rx-preview.open .modal-body {
+    background: transparent !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    display: block !important;
   }
 
   #rx-a4-page {
     box-shadow: none !important;
     width: 100% !important;
-    height: 100% !important;
+    min-height: 280mm !important;
+    height: auto !important;
     padding: 0 !important;
     margin: 0 !important;
     display: flex !important;
     flex-direction: column !important;
-    font-size: 11pt !important;
+    font-size: 10pt !important;
     page-break-inside: avoid !important;
     break-inside: avoid !important;
   }
 
-  .rx-col-left { flex: 0 0 50% !important; }
-  .rx-main-body { flex: 1 1 auto !important; min-height: 0 !important; }
+  .rx-col-left { flex: 0 0 48% !important; }
+  .rx-col-right { flex: 1 1 auto !important; }
+  .rx-main-body { flex: 1 1 auto !important; min-height: 155mm !important; }
   .rx-consent-box { flex-shrink: 0 !important; }
   .rx-footer-strip { flex-shrink: 0 !important; }
+
+  /* When modal-receipt-preview is open for print */
+  #modal-receipt-preview.open {
+    display: block !important;
+    position: static !important;
+    background: transparent !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    box-shadow: none !important;
+  }
+
+  #modal-receipt-preview.open .modal-card {
+    box-shadow: none !important;
+    border: none !important;
+    max-width: 100% !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    background: transparent !important;
+  }
 
   /* Ensure crisp colors and backgrounds */
   * {
