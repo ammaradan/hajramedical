@@ -5,7 +5,7 @@
  */
 
 const DB_NAME = 'HajraMedicalDB';
-const DB_VERSION = 1;
+let DB_VERSION = 3;
 
 let _dbInstance = null;
 
@@ -19,15 +19,23 @@ function getPSTTime() {
   return pst.toISOString().slice(11, 19);
 }
 
-function initDB() {
+function initDB(versionToUse) {
   return new Promise((resolve, reject) => {
     if (_dbInstance) return resolve(_dbInstance);
-    const req = indexedDB.open(DB_NAME, DB_VERSION);
+    const ver = versionToUse || DB_VERSION;
+    const req = indexedDB.open(DB_NAME, ver);
 
     req.onupgradeneeded = (e) => {
       const db = e.target.result;
+      const tx = e.target.transaction;
 
       // Patients store
+      if (db.objectStoreNames.contains('patients')) {
+        const pStore = tx.objectStore('patients');
+        if (pStore.keyPath !== 'mrNumber') {
+          db.deleteObjectStore('patients');
+        }
+      }
       if (!db.objectStoreNames.contains('patients')) {
         const pStore = db.createObjectStore('patients', { keyPath: 'mrNumber' });
         pStore.createIndex('name', 'name', { unique: false });
@@ -71,7 +79,16 @@ function initDB() {
       seedDefaultTemplatesIfNeeded().then(() => resolve(_dbInstance));
     };
 
-    req.onerror = (e) => reject(e.target.error);
+    req.onerror = (e) => {
+      const err = e.target.error;
+      if (err && (err.name === 'VersionError' || String(err.message).includes('less than the existing version'))) {
+        const m = String(err.message).match(/existing version \((\d+)\)/i);
+        const nextVer = m ? (parseInt(m[1], 10) + 1) : (ver + 1);
+        DB_VERSION = nextVer;
+        return initDB(nextVer).then(resolve).catch(reject);
+      }
+      reject(err);
+    };
   });
 }
 
