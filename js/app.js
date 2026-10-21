@@ -44,6 +44,7 @@ function updateClock() {
 
 document.addEventListener('DOMContentLoaded', async () => {
   try {
+    checkLoginStatus();
     await HMC_DB.initDB();
     setInterval(updateClock, 1000);
     updateClock();
@@ -182,6 +183,7 @@ async function handleSavePatient() {
 
     await refreshSidebarStats();
     await refreshRecentPatientsList();
+    triggerBackgroundAutoSync();
   } catch (err) {
     showToast('Error saving record: ' + err.message, 'error');
   }
@@ -197,6 +199,7 @@ async function handleUpdatePatient() {
     showToast('Record updated successfully.', 'success');
     await refreshSidebarStats();
     await refreshRecentPatientsList();
+    triggerBackgroundAutoSync();
   } catch (err) {
     showToast('Error updating record: ' + err.message, 'error');
   }
@@ -244,6 +247,7 @@ async function handleSaveNewVisit() {
     showToast(`Saved as New Visit #${nextVisitNo} for ${data.name}! Total visits: ${_currentPatientVisits.length}`, 'success');
     await refreshSidebarStats();
     await refreshRecentPatientsList();
+    triggerBackgroundAutoSync();
   } catch (err) {
     showToast('Error saving new visit: ' + err.message, 'error');
   }
@@ -343,12 +347,19 @@ function setupRichEditors() {
       _activeEditor = editor;
     });
 
-    // Formatting shortcuts
+    // Formatting shortcuts & Ctrl+A support
     editor.addEventListener('keydown', (e) => {
-      if (e.ctrlKey) {
-        if (e.key === 'b' || e.key === 'B') {
+      if (e.ctrlKey || e.metaKey) {
+        if (e.key === 'a' || e.key === 'A') {
           e.preventDefault();
-          document.execCommand('bold', false, null);
+          const range = document.createRange();
+          range.selectNodeContents(editor);
+          const sel = window.getSelection();
+          sel.removeAllRanges();
+          sel.addRange(range);
+        } else if (e.key === 'b' || e.key === 'B') {
+          e.preventDefault();
+          toggleEditorBold(editor);
         } else if (e.key === 'i' || e.key === 'I') {
           e.preventDefault();
           document.execCommand('italic', false, null);
@@ -359,6 +370,20 @@ function setupRichEditors() {
       }
     });
   });
+}
+
+function toggleEditorBold(editor) {
+  document.execCommand('bold', false, null);
+  // Synchronize list markers (bullets/numbers) weight on parent LI
+  const sel = window.getSelection();
+  if (sel && sel.rangeCount > 0) {
+    editor.querySelectorAll('li').forEach(li => {
+      if (sel.containsNode(li, true)) {
+        const hasBold = li.querySelector('b, strong') !== null;
+        li.style.fontWeight = hasBold ? '700' : 'normal';
+      }
+    });
+  }
 }
 
 function initRichToolbars() {
@@ -486,6 +511,8 @@ function initRichToolbars() {
           const prevSize = RTE_SIZES[prevIdx];
           sizeLabel.textContent = prevSize;
           applyFontSizeToEditor(editor, prevSize);
+        } else if (cmd === 'bold') {
+          toggleEditorBold(editor);
         } else {
           document.execCommand(cmd, false, null);
         }
@@ -515,6 +542,13 @@ function applyFontSizeToEditor(editor, sizePx) {
   const sel = window.getSelection();
   if (!sel || sel.rangeCount === 0) return;
   const range = sel.getRangeAt(0);
+
+  // Synchronize font size directly on LI so the bullet/number marker resizes!
+  editor.querySelectorAll('li').forEach(li => {
+    if (sel.containsNode(li, true)) {
+      li.style.fontSize = sizePx;
+    }
+  });
 
   if (range.collapsed) {
     const span = document.createElement('span');
@@ -1271,7 +1305,7 @@ function openDatabasePrompt() {
 
 async function verifyDatabasePassword() {
   const entered = document.getElementById('db-auth-input').value;
-  if (entered === _dbPassword) {
+  if (entered === getAppPassword()) {
     document.getElementById('modal-db-auth').classList.remove('open');
     await openDatabaseManager();
   } else {
@@ -1331,17 +1365,197 @@ function handleImportDatabase(event) {
   reader.readAsText(file);
 }
 
+// ── SECURITY & ACCESS CONTROL ─────────────────────────────────────────
+function getAppPassword() {
+  return localStorage.getItem('hmc_app_password') || localStorage.getItem('hmc_db_password') || '1234';
+}
+
+function checkLoginStatus() {
+  const overlay = document.getElementById('app-login-overlay');
+  if (!overlay) return;
+  const isAuth = sessionStorage.getItem('hmc_auth_token') === 'unlocked';
+  if (isAuth) {
+    overlay.classList.add('hidden');
+  } else {
+    overlay.classList.remove('hidden');
+    const pwdInput = document.getElementById('login-password');
+    if (pwdInput) {
+      pwdInput.value = '';
+      setTimeout(() => pwdInput.focus(), 150);
+    }
+  }
+}
+
+function handleAppLogin() {
+  const pwdInput = document.getElementById('login-password');
+  const errEl = document.getElementById('login-error');
+  const val = (pwdInput ? pwdInput.value : '').trim();
+  const correct = getAppPassword();
+
+  if (val === correct) {
+    sessionStorage.setItem('hmc_auth_token', 'unlocked');
+    const overlay = document.getElementById('app-login-overlay');
+    if (overlay) overlay.classList.add('hidden');
+    if (errEl) errEl.style.display = 'none';
+    showToast('System unlocked. Welcome, Dr. Hafiz Ehsan Qadeer!', 'success');
+  } else {
+    if (errEl) {
+      errEl.textContent = 'Incorrect password. Please try again.';
+      errEl.style.display = 'block';
+    }
+    if (pwdInput) {
+      pwdInput.select();
+      pwdInput.focus();
+    }
+  }
+}
+
+function toggleLoginPassVis() {
+  const inp = document.getElementById('login-password');
+  if (inp) {
+    inp.type = inp.type === 'password' ? 'text' : 'password';
+  }
+}
+
+function lockSystemNow() {
+  sessionStorage.removeItem('hmc_auth_token');
+  closeModals();
+  checkLoginStatus();
+  showToast('System locked.', 'info');
+}
+
+// ── SETTINGS & CLOUD SYNC ─────────────────────────────────────────────
+function openSettingsModal() {
+  const modal = document.getElementById('modal-settings');
+  if (!modal) return;
+  modal.classList.add('open');
+
+  const cloudUrl = localStorage.getItem('hmc_cloud_sync_url') || '';
+  const autoSync = localStorage.getItem('hmc_auto_sync') !== 'false';
+  const urlInp = document.getElementById('set-cloud-url');
+  if (urlInp) urlInp.value = cloudUrl;
+  const autoInp = document.getElementById('set-auto-sync');
+  if (autoInp) autoInp.checked = autoSync;
+}
+
+function closeSettingsModal() {
+  const modal = document.getElementById('modal-settings');
+  if (modal) modal.classList.remove('open');
+}
+
+function switchSettingsTab(tab) {
+  document.querySelectorAll('.settings-tab-btn').forEach(b => b.classList.remove('active'));
+  document.querySelectorAll('.settings-pane').forEach(p => p.classList.remove('active'));
+  const btn = document.getElementById(`stab-btn-${tab}`);
+  const pane = document.getElementById(`spane-${tab}`);
+  if (btn) btn.classList.add('active');
+  if (pane) pane.classList.add('active');
+}
+
 function handleChangePassword() {
-  const oldPwd = prompt('Enter Current Password:');
-  if (oldPwd !== _dbPassword) {
-    showToast('Incorrect current password.', 'error');
+  const cur = document.getElementById('set-cur-pass').value;
+  const n1 = document.getElementById('set-new-pass').value;
+  const n2 = document.getElementById('set-confirm-pass').value;
+
+  if (cur !== getAppPassword()) {
+    showToast('Current password does not match.', 'error');
     return;
   }
-  const newPwd = prompt('Enter New Password:');
-  if (newPwd && newPwd.trim()) {
-    _dbPassword = newPwd.trim();
-    localStorage.setItem('hmc_db_password', _dbPassword);
-    showToast('Password updated successfully.', 'success');
+  if (!n1 || n1.length < 1) {
+    showToast('Please enter a valid new password.', 'error');
+    return;
+  }
+  if (n1 !== n2) {
+    showToast('New passwords do not match.', 'error');
+    return;
+  }
+
+  localStorage.setItem('hmc_app_password', n1);
+  localStorage.setItem('hmc_db_password', n1);
+  _dbPassword = n1;
+  const form = document.getElementById('form-change-password');
+  if (form) form.reset();
+  showToast('Password updated successfully!', 'success');
+}
+
+function saveCloudSyncConfig() {
+  const urlInp = document.getElementById('set-cloud-url');
+  const autoInp = document.getElementById('set-auto-sync');
+  const url = (urlInp ? urlInp.value : '').trim();
+  const auto = autoInp ? autoInp.checked : true;
+
+  localStorage.setItem('hmc_cloud_sync_url', url);
+  localStorage.setItem('hmc_auto_sync', auto ? 'true' : 'false');
+  showToast('Cloud Sync settings saved successfully!', 'success');
+}
+
+async function handleCloudSyncClick(silent = false) {
+  const cloudUrl = (localStorage.getItem('hmc_cloud_sync_url') || '').trim();
+  const btn = document.getElementById('btn-header-sync');
+
+  if (!cloudUrl) {
+    if (!silent) {
+      openSettingsModal();
+      switchSettingsTab('sync');
+      showToast('Please enter your Cloud Sync URL or use Backup & Transfer.', 'info');
+    }
+    return;
+  }
+
+  try {
+    if (btn) {
+      btn.classList.add('syncing');
+      btn.innerHTML = '<span>☁</span> Syncing...';
+    }
+
+    const localData = await HMC_DB.exportFullDatabase();
+
+    const response = await fetch(cloudUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+      body: JSON.stringify({
+        action: 'syncFullDatabase',
+        data: localData.data,
+        timestamp: Date.now()
+      })
+    });
+
+    const result = await response.json();
+
+    if (result && result.success) {
+      if (result.data) {
+        await HMC_DB.importFullDatabase({ data: result.data });
+        await refreshSidebarStats();
+        await refreshRecentPatientsList();
+      }
+      if (!silent) {
+        showToast('☁ Synchronized with Cloud successfully!', 'success');
+      }
+      if (btn) {
+        btn.classList.remove('syncing');
+        btn.innerHTML = '<span>☁</span> Synced';
+        setTimeout(() => { if (btn) btn.innerHTML = '<span>☁</span> Sync'; }, 3000);
+      }
+    } else {
+      throw new Error(result.error || result.message || 'Cloud sync error');
+    }
+  } catch (err) {
+    console.error('Cloud sync error:', err);
+    if (!silent) {
+      showToast('Sync notice: ' + (err.message || 'Offline/Network error'), 'error');
+    }
+    if (btn) {
+      btn.classList.remove('syncing');
+      btn.innerHTML = '<span>☁</span> Sync';
+    }
+  }
+}
+
+function triggerBackgroundAutoSync() {
+  const auto = localStorage.getItem('hmc_auto_sync') !== 'false';
+  const url = (localStorage.getItem('hmc_cloud_sync_url') || '').trim();
+  if (auto && url) {
+    handleCloudSyncClick(true);
   }
 }
 

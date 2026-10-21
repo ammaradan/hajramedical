@@ -40,6 +40,14 @@
         <span>💾</span> Database
       </button>
 
+      <button class="hbtn hbtn-sync" id="btn-header-sync" onclick="handleCloudSyncClick()" title="Cloud Data Sync (Multi-Device)">
+        <span>☁</span> Sync
+      </button>
+
+      <button class="hbtn hbtn-settings" onclick="openSettingsModal()" title="Settings & Change Password">
+        <span>⚙️</span> Settings
+      </button>
+
       <button class="hbtn hbtn-templates" id="btn-toggle-templates" onclick="toggleTemplatesPanel()" title="Toggle Clinical Templates">
         <span>⚡</span> Clinical Templates
       </button>
@@ -488,21 +496,19 @@
 
           </div><!-- /rx-main-body -->
 
-          <!-- 5. Urdu Patient Consent Box -->
-          <div class="rx-consent-box">
+          <!-- 5. Unified Urdu Consent & Clinic Footer Box -->
+          <div class="rx-footer-box">
             <div class="rx-consent-item">
               میں علاج کی غرض سے کلینک آئی/آیا ہوں ۔ اس سلسلے میں معائنہ/تشخیص کے لیے درکار کارروائی اور علاج کی اجازت دیتا/دیتی ہوں اور میرے والدین/ورثان
             </div>
             <div class="rx-consent-item">
               کسی بھی پیچیدگی آنے کی صورت میں، کلینک عملہ یا ڈاکٹر کو ذمہ دار نہ سمجھوں گا/گی۔ اگر مجھے ریفر کیا جائے، مجھے کوئی اعتراض نہیں ہوگا۔
             </div>
-          </div>
-
-          <!-- 6. Footer strip -->
-          <div class="rx-footer-strip">
-            <div class="rx-footer-col rx-col-revisit">Revisit After: <span id="prx-revisit"></span> Days</div>
-            <div class="rx-footer-col rx-col-contact">Contact Number: <strong>041-4711753 / 0313-6530553</strong></div>
-            <div class="rx-footer-col rx-col-timings">Timings: Daily, 10:00AM till Sunset</div>
+            <div class="rx-footer-strip">
+              <div class="rx-footer-col rx-col-revisit">Revisit After: <span id="prx-revisit"></span> Days</div>
+              <div class="rx-footer-col rx-col-contact">Contact Number: <strong>041-4711753 / 0313-6530553</strong></div>
+              <div class="rx-footer-col rx-col-timings">Timings: Daily, 02:00PM to 07:00PM</div>
+            </div>
           </div>
 
         </div><!-- /rx-a4-page -->
@@ -860,6 +866,109 @@
           </div>
         </form>
       </div>
+    </div>
+  </div>
+
+  <!-- ── MODAL: SYSTEM SETTINGS & CLOUD SYNC ────────────────────────── -->
+  <div class="modal-backdrop" id="modal-settings">
+    <div class="modal-card" style="max-width:560px;">
+      <div class="modal-header">
+        <h2>⚙️ System Settings & Sync</h2>
+        <button class="modal-close" onclick="closeSettingsModal()">✕</button>
+      </div>
+      <div class="modal-body" style="padding:20px 24px;">
+        <div class="settings-tabs">
+          <button class="settings-tab-btn active" id="stab-btn-pass" onclick="switchSettingsTab('pass')">🔐 Change Password</button>
+          <button class="settings-tab-btn" id="stab-btn-sync" onclick="switchSettingsTab('sync')">☁ Cloud Sync</button>
+          <button class="settings-tab-btn" id="stab-btn-backup" onclick="switchSettingsTab('backup')">💾 Backup & Transfer</button>
+        </div>
+
+        <!-- TAB 1: CHANGE PASSWORD -->
+        <div class="settings-pane active" id="spane-pass">
+          <form id="form-change-password" onsubmit="event.preventDefault(); handleChangePassword();">
+            <div class="form-group" style="margin-bottom:14px;">
+              <label>Current Password *</label>
+              <input type="password" id="set-cur-pass" placeholder="Enter current password" required />
+            </div>
+            <div class="form-group" style="margin-bottom:14px;">
+              <label>New Password *</label>
+              <input type="password" id="set-new-pass" placeholder="Enter new password" required />
+            </div>
+            <div class="form-group" style="margin-bottom:18px;">
+              <label>Confirm New Password *</label>
+              <input type="password" id="set-confirm-pass" placeholder="Re-type new password" required />
+            </div>
+            <div style="display:flex;justify-content:space-between;align-items:center;">
+              <button type="button" class="btn btn-outline" onclick="lockSystemNow()" style="color:var(--red);border-color:var(--red);">🔒 Lock System Now</button>
+              <button type="submit" class="btn btn-save">💾 Update Password</button>
+            </div>
+          </form>
+        </div>
+
+        <!-- TAB 2: CLOUD SYNC -->
+        <div class="settings-pane" id="spane-sync">
+          <div style="font-size:12.5px;color:var(--text);margin-bottom:12px;line-height:1.5;">
+            Connect your online Google Sheets Web App URL or cloud API to automatically synchronize patients, visits, appointments, and templates across all your computers and phones.
+          </div>
+          <div class="form-group" style="margin-bottom:14px;">
+            <label>Cloud Sync Web App URL (Google Apps Script)</label>
+            <input type="url" id="set-cloud-url" placeholder="https://script.google.com/macros/s/.../exec" style="font-family:monospace;font-size:12px;" />
+          </div>
+          <div class="form-group" style="margin-bottom:16px;">
+            <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-weight:600;">
+              <input type="checkbox" id="set-auto-sync" checked />
+              <span>Automatically sync in background when saving prescriptions</span>
+            </label>
+          </div>
+          <div style="display:flex;justify-content:space-between;align-items:center;">
+            <button type="button" class="btn btn-outline" onclick="saveCloudSyncConfig()">💾 Save Sync URL</button>
+            <button type="button" class="btn btn-save" onclick="handleCloudSyncClick()">☁ Sync Now</button>
+          </div>
+        </div>
+
+        <!-- TAB 3: BACKUP & TRANSFER -->
+        <div class="settings-pane" id="spane-backup">
+          <div style="font-size:12.5px;color:var(--text);margin-bottom:14px;line-height:1.5;">
+            Transfer your entire clinic database (patients, visits, appointments, payments, and templates) between devices in 1 click without internet.
+          </div>
+          <div style="display:flex;flex-direction:column;gap:10px;">
+            <button type="button" class="btn btn-outline" onclick="handleExportDatabaseJSON()" style="justify-content:center;padding:12px;">
+              📤 Download Full Backup File (.json)
+            </button>
+            <label class="btn btn-save" style="justify-content:center;padding:12px;cursor:pointer;text-align:center;">
+              📥 Restore Database from Backup File (.json)
+              <input type="file" accept=".json" onchange="handleImportDatabase(event)" style="display:none;" />
+            </label>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+  <!-- ── LOGIN OVERLAY (Access Protection) ───────────────────────────── -->
+  <div id="app-login-overlay" class="login-overlay">
+    <div class="login-card">
+      <div class="login-logo-wrap">
+        <img src="Logo.jpeg" alt="Hajra Medical Complex" class="login-logo" />
+      </div>
+      <h1 class="login-title">Hajra Medical Complex</h1>
+      <p class="login-subtitle">Jaranwala · Patient & Clinical Management System</p>
+      <div class="login-doctor">Dr. Hafiz Ehsan Qadeer <span>(Family Physician)</span></div>
+
+      <form id="form-login" onsubmit="event.preventDefault(); handleAppLogin();">
+        <div class="login-field">
+          <label for="login-password">System Password</label>
+          <div class="login-input-wrap">
+            <input type="password" id="login-password" placeholder="Enter password to unlock" autocomplete="current-password" autofocus required />
+            <button type="button" class="btn-toggle-pass" onclick="toggleLoginPassVis()">👁</button>
+          </div>
+        </div>
+        <div id="login-error" class="login-error" style="display:none;"></div>
+        <button type="submit" class="btn-login-submit" id="btn-login-submit">
+          <span>🔒</span> Unlock System
+        </button>
+      </form>
     </div>
   </div>
 
