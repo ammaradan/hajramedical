@@ -878,6 +878,32 @@ async function importFullDatabase(importData) {
   });
 }
 
+function cleanPlainText(html) {
+  if (!html) return '';
+  let text = String(html);
+  text = text.replace(/<br\s*[\/]?>/gi, '\n');
+  text = text.replace(/<li[^>]*>/gi, '• ');
+  text = text.replace(/<\/li>/gi, '\n');
+  text = text.replace(/<\/(p|div|h[1-6])>/gi, '\n');
+  text = text.replace(/<[^>]+>/g, '');
+  text = text.replace(/&nbsp;/gi, ' ')
+             .replace(/&amp;/gi, '&')
+             .replace(/&lt;/gi, '<')
+             .replace(/&gt;/gi, '>')
+             .replace(/&quot;/gi, '"')
+             .replace(/&#39;/gi, "'");
+  text = text.replace(/\r/g, '');
+  text = text.replace(/•\s*[-•*]\s*/g, '• ');
+  text = text.replace(/\n{3,}/g, '\n\n');
+  return text.trim();
+}
+
+function csvEsc(val) {
+  if (val === undefined || val === null) return '""';
+  const str = String(val).replace(/"/g, '""');
+  return `"${str}"`;
+}
+
 async function exportPatientsToCSV() {
   const db = await initDB();
   return new Promise((resolve) => {
@@ -888,45 +914,61 @@ async function exportPatientsToCSV() {
     req.onsuccess = () => {
       const rows = req.result || [];
       const headers = [
-        'Serial No', 'MR Number', 'Date', 'Time', 'Visit No',
-        'Patient Name', 'Relation', 'Parentage', 'Age', 'Gender', 'Weight',
-        'Phone', 'CNIC', 'Address', 'Temp', 'BP', 'RR', 'Pulse',
-        'Allergy', 'Symptoms', 'Findings', 'Diagnosis', 'Treatment', 'Revisit Days'
+        'Serial No',
+        'Patient ID',
+        'Date',
+        'Visit No',
+        'Patient Name',
+        'Relation',
+        'Parentage',
+        'Age',
+        'Gender',
+        'Weight',
+        'Phone Number',
+        'CNIC',
+        'Address',
+        'Temp',
+        'BP',
+        'Pulse',
+        'Allergy',
+        'Symptoms / History / Condition',
+        'Findings',
+        'Diagnosis',
+        'Treatment',
+        'Revisit Days'
       ];
 
-      const csvLines = [headers.join(',')];
+      const csvLines = [headers.map(h => csvEsc(h)).join(',')];
 
       rows.forEach(r => {
         const line = [
-          r.serialNo || '',
-          `"${r.mrNumber || ''}"`,
-          `"${r.date || ''}"`,
-          `"${r.time || ''}"`,
-          r.visitNo || '',
-          `"${(r.name || '').replace(/"/g, '""')}"`,
-          `"${r.relation || ''}"`,
-          `"${(r.parentage || '').replace(/"/g, '""')}"`,
-          `"${r.age || ''}"`,
-          `"${r.gender || ''}"`,
-          `"${r.weight || ''}"`,
-          `"${r.phone || ''}"`,
-          `"${r.cnic || ''}"`,
-          `"${(r.address || '').replace(/"/g, '""')}"`,
-          `"${r.temp || ''}"`,
-          `"${r.bp || ''}"`,
-          `"${r.rr || ''}"`,
-          `"${r.pulse || ''}"`,
-          `"${(r.allergy || '').replace(/"/g, '""')}"`,
-          `"${(r.symptoms || '').replace(/"/g, '""')}"`,
-          `"${(r.findings || '').replace(/"/g, '""')}"`,
-          `"${(r.diagnosis || '').replace(/"/g, '""')}"`,
-          `"${(r.treatment || '').replace(/"/g, '""')}"`,
-          `"${r.revisit || ''}"`
+          csvEsc(r.serialNo || ''),
+          csvEsc(r.mrNumber || ''),
+          csvEsc((r.date || '') + (r.time ? ' ' + r.time : '')),
+          csvEsc(r.visitNo !== undefined ? r.visitNo : 1),
+          csvEsc(r.name || ''),
+          csvEsc(r.relation || 'S/O'),
+          csvEsc(r.parentage || ''),
+          csvEsc(r.age || ''),
+          csvEsc(r.gender || 'Male'),
+          csvEsc(r.weight || ''),
+          csvEsc(r.phone || ''),
+          csvEsc(r.cnic || ''),
+          csvEsc(r.address || ''),
+          csvEsc(r.temp || ''),
+          csvEsc(r.bp || ''),
+          csvEsc(r.pulse || ''),
+          csvEsc(cleanPlainText(r.allergy || '')),
+          csvEsc(cleanPlainText(r.symptoms || '')),
+          csvEsc(cleanPlainText(r.findings || '')),
+          csvEsc(cleanPlainText(r.diagnosis || '')),
+          csvEsc(cleanPlainText(r.treatment || '')),
+          csvEsc(r.revisit || '')
         ];
         csvLines.push(line.join(','));
       });
 
-      resolve(csvLines.join('\n'));
+      resolve(csvLines.join('\r\n'));
     };
     req.onerror = () => resolve('');
   });

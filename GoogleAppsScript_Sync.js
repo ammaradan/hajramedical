@@ -32,23 +32,30 @@
 
 var SCRIPT_PROP = PropertiesService.getScriptProperties();
 
-// The exact headings requested
+// The exact comprehensive headings
 var HEADINGS = [
   'Serial No',
   'Patient ID',
   'Date',
   'Visit No',
   'Patient Name',
+  'Relation',
   'Parentage',
   'Age',
   'Gender',
   'Weight',
   'Phone Number',
+  'CNIC',
   'Address',
+  'Temp',
+  'BP',
+  'Pulse',
   'Allergy',
   'Symptoms / History / Condition',
   'Findings',
-  'Treatment'
+  'Diagnosis',
+  'Treatment',
+  'Revisit Days'
 ];
 
 function doGet(e) {
@@ -131,15 +138,33 @@ function syncPatientRecordsSheet(ss, visits) {
   var sheetName = 'Patient Records';
   var sheet = ss.getSheetByName(sheetName);
   if (!sheet) {
-    // Check if default Sheet1 exists, rename it; otherwise insert new sheet
-    var firstSheet = ss.getSheets()[0];
-    if (firstSheet && firstSheet.getName() === 'Sheet1') {
-      sheet = firstSheet;
+    // If old 'Visits' sheet exists, rename it to 'Patient Records'
+    var oldVisits = ss.getSheetByName('Visits');
+    if (oldVisits) {
+      sheet = oldVisits;
       sheet.setName(sheetName);
     } else {
-      sheet = ss.insertSheet(sheetName, 0);
+      var firstSheet = ss.getSheets()[0];
+      if (firstSheet && firstSheet.getName() === 'Sheet1') {
+        sheet = firstSheet;
+        sheet.setName(sheetName);
+      } else {
+        sheet = ss.insertSheet(sheetName, 0);
+      }
     }
   }
+
+  // Remove legacy redundant sheets if present
+  try {
+    var legacyVisits = ss.getSheetByName('Visits');
+    if (legacyVisits && legacyVisits.getSheetId() !== sheet.getSheetId()) {
+      ss.deleteSheet(legacyVisits);
+    }
+    var legacyPatients = ss.getSheetByName('Patients');
+    if (legacyPatients && legacyPatients.getSheetId() !== sheet.getSheetId()) {
+      ss.deleteSheet(legacyPatients);
+    }
+  } catch (cleanErr) {}
 
   // Ensure Header row exists and is styled
   var headerRange = sheet.getRange(1, 1, 1, HEADINGS.length);
@@ -161,16 +186,10 @@ function syncPatientRecordsSheet(ss, visits) {
 
   if (!visits || visits.length === 0) return;
 
-  // Build rows matching the exact 15 headings
+  // Build rows matching the exact headings with 100% clean plain text (no HTML tags)
   var rows = [];
   for (var i = 0; i < visits.length; i++) {
     var v = visits[i];
-    var parentageStr = '';
-    if (v.relation && v.parentage) {
-      parentageStr = v.relation + ' ' + v.parentage;
-    } else {
-      parentageStr = v.parentage || v.relation || '';
-    }
 
     var cleanDate = v.date || '';
     if (typeof cleanDate === 'string' && cleanDate.indexOf('T') !== -1) {
@@ -187,21 +206,28 @@ function syncPatientRecordsSheet(ss, visits) {
     }
 
     var row = [
-      v.serialNo || (i + 1),                      // 1. Serial No
-      v.mrNumber || '',                           // 2. Patient ID
-      cleanDate + (cleanTime ? ' ' + cleanTime : ''), // 3. Date
-      v.visitNo !== undefined ? v.visitNo : 1,    // 4. Visit No
-      v.name || '',                               // 5. Patient Name
-      parentageStr,                               // 6. Parentage
-      v.age || '',                                // 7. Age
-      v.gender || 'Male',                         // 8. Gender
-      v.weight || '',                             // 9. Weight
-      v.phone || '',                              // 10. Phone Number
-      v.address || '',                            // 11. Address
-      v.allergy || '',                            // 12. Allergy
-      stripHtmlToPlainText(v.symptoms || ''),     // 13. Symptoms / History / Condition
-      stripHtmlToPlainText(v.findings || ''),     // 14. Findings
-      stripHtmlToPlainText(v.treatment || '')      // 15. Treatment
+      v.serialNo || (i + 1),                              // 1. Serial No
+      v.mrNumber || '',                                   // 2. Patient ID
+      cleanDate + (cleanTime ? ' ' + cleanTime : ''),     // 3. Date
+      v.visitNo !== undefined ? v.visitNo : 1,            // 4. Visit No
+      v.name || '',                                       // 5. Patient Name
+      v.relation || 'S/O',                                // 6. Relation
+      v.parentage || '',                                  // 7. Parentage
+      v.age || '',                                        // 8. Age
+      v.gender || 'Male',                                 // 9. Gender
+      v.weight || '',                                     // 10. Weight
+      v.phone || '',                                      // 11. Phone Number
+      v.cnic || '',                                       // 12. CNIC
+      v.address || '',                                    // 13. Address
+      v.temp || '',                                       // 14. Temp
+      v.bp || '',                                         // 15. BP
+      v.pulse || '',                                      // 16. Pulse
+      stripHtmlToPlainText(v.allergy || ''),              // 17. Allergy
+      stripHtmlToPlainText(v.symptoms || ''),             // 18. Symptoms / History / Condition
+      stripHtmlToPlainText(v.findings || ''),             // 19. Findings
+      stripHtmlToPlainText(v.diagnosis || ''),            // 20. Diagnosis
+      stripHtmlToPlainText(v.treatment || ''),            // 21. Treatment
+      v.revisit || ''                                     // 22. Revisit Days
     ];
     rows.push(row);
   }
@@ -226,17 +252,24 @@ function syncPatientRecordsSheet(ss, visits) {
   sheet.setColumnWidth(2, 100);  // Patient ID
   sheet.setColumnWidth(3, 110);  // Date
   sheet.setColumnWidth(4, 70);   // Visit No
-  sheet.setColumnWidth(5, 150);  // Patient Name
-  sheet.setColumnWidth(6, 140);  // Parentage
-  sheet.setColumnWidth(7, 60);   // Age
-  sheet.setColumnWidth(8, 70);   // Gender
-  sheet.setColumnWidth(9, 70);   // Weight
-  sheet.setColumnWidth(10, 120); // Phone Number
-  sheet.setColumnWidth(11, 160); // Address
-  sheet.setColumnWidth(12, 120); // Allergy
-  sheet.setColumnWidth(13, 220); // Symptoms / History
-  sheet.setColumnWidth(14, 200); // Findings
-  sheet.setColumnWidth(15, 260); // Treatment
+  sheet.setColumnWidth(5, 140);  // Patient Name
+  sheet.setColumnWidth(6, 70);   // Relation
+  sheet.setColumnWidth(7, 130);  // Parentage
+  sheet.setColumnWidth(8, 60);   // Age
+  sheet.setColumnWidth(9, 70);   // Gender
+  sheet.setColumnWidth(10, 70);  // Weight
+  sheet.setColumnWidth(11, 110); // Phone Number
+  sheet.setColumnWidth(12, 120); // CNIC
+  sheet.setColumnWidth(13, 150); // Address
+  sheet.setColumnWidth(14, 60);  // Temp
+  sheet.setColumnWidth(15, 70);  // BP
+  sheet.setColumnWidth(16, 60);  // Pulse
+  sheet.setColumnWidth(17, 120); // Allergy
+  sheet.setColumnWidth(18, 200); // Symptoms / History
+  sheet.setColumnWidth(19, 220); // Findings
+  sheet.setColumnWidth(20, 150); // Diagnosis
+  sheet.setColumnWidth(21, 250); // Treatment
+  sheet.setColumnWidth(22, 90);  // Revisit Days
 }
 
 /**
@@ -398,6 +431,7 @@ function stripHtmlToPlainText(html) {
              .replace(/&quot;/gi, '"')
              .replace(/&#39;/gi, "'");
   text = text.replace(/\r/g, '');
+  text = text.replace(/•\s*[-•*]\s*/g, '• ');
   text = text.replace(/\n{3,}/g, '\n\n');
   return text.trim();
 }
