@@ -920,8 +920,9 @@
               <span>Automatically sync in background when saving prescriptions</span>
             </label>
           </div>
-          <div style="display:flex;justify-content:space-between;align-items:center;">
+          <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;">
             <button type="button" class="btn btn-outline" onclick="saveCloudSyncConfig()">💾 Save Sync URL</button>
+            <button type="button" class="btn btn-outline" id="btn-test-sync" onclick="testCloudSyncConnection()">⚡ Test Connection</button>
             <button type="button" class="btn btn-save" onclick="handleCloudSyncClick()">☁ Sync Now</button>
           </div>
         </div>

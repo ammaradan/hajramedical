@@ -59,6 +59,11 @@ document.addEventListener('DOMContentLoaded', async () => {
     await resetFormToNew();
     await refreshSidebarStats();
     await refreshRecentPatientsList();
+
+    // Auto-sync in background on startup to pull fresh data across devices
+    setTimeout(() => {
+      triggerBackgroundAutoSync();
+    }, 1200);
   } catch (err) {
     console.error('Initialization error:', err);
     showToast('Failed to initialize database: ' + err.message, 'error');
@@ -91,11 +96,16 @@ async function resetFormToNew() {
 }
 
 function getFormData() {
+  const dateInput = document.getElementById('f-date');
+  const timeInput = document.getElementById('f-time');
+  const dateVal = (dateInput && dateInput.value) ? dateInput.value : HMC_DB.getPSTDate();
+  const timeVal = (timeInput && timeInput.value) ? timeInput.value : HMC_DB.getPSTTime();
+
   return {
     serialNo: _currentSerialNo,
     mrNumber: document.getElementById('f-mr').value.trim(),
-    date: document.getElementById('f-date').value,
-    time: document.getElementById('f-time').value,
+    date: dateVal,
+    time: timeVal,
     visitNo: parseInt(document.getElementById('f-visit').value, 10) || 1,
     name: document.getElementById('f-name').value.trim(),
     relation: document.getElementById('f-relation').value,
@@ -123,11 +133,68 @@ function getFormData() {
   };
 }
 
+function formatDateForInput(val) {
+  if (!val) return HMC_DB.getPSTDate();
+  val = String(val).trim();
+  if (/^\d{4}-\d{2}-\d{2}$/.test(val)) return val;
+  if (val.includes('T')) {
+    try {
+      const d = new Date(val);
+      if (!isNaN(d.getTime())) {
+        const nf = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Karachi', year: 'numeric', month: '2-digit', day: '2-digit' });
+        return nf.format(d);
+      }
+    } catch (e) {}
+  }
+  try {
+    const d = new Date(val);
+    if (!isNaN(d.getTime())) {
+      const nf = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Karachi', year: 'numeric', month: '2-digit', day: '2-digit' });
+      return nf.format(d);
+    }
+  } catch (e) {}
+  return HMC_DB.getPSTDate();
+}
+
+function formatTimeForDisplay(val) {
+  if (!val) return HMC_DB.getPSTTime();
+  val = String(val).trim();
+
+  // If 1899 epoch date from Google Sheets or full ISO date string
+  if (val.includes('1899-12-30') || val.includes('1899-12-31') || (val.includes('T') && val.endsWith('Z'))) {
+    try {
+      const d = new Date(val);
+      if (!isNaN(d.getTime())) {
+        return d.toLocaleTimeString('en-US', { timeZone: 'Asia/Karachi', hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true });
+      }
+    } catch (e) {}
+  }
+
+  return val;
+}
+
+function formatPrintDate(val) {
+  if (!val) return HMC_DB.getPSTDate();
+  try {
+    const parts = String(val).split('-');
+    if (parts.length === 3) {
+      const year = parts[0];
+      const month = parseInt(parts[1], 10) - 1;
+      const day = parseInt(parts[2], 10);
+      const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+      if (!isNaN(day) && months[month]) {
+        return `${String(day).padStart(2, '0')}-${months[month]}-${year}`;
+      }
+    }
+  } catch (e) {}
+  return val;
+}
+
 function populateForm(data) {
   _currentSerialNo = data.serialNo || null;
   document.getElementById('f-mr').value = data.mrNumber || '';
-  document.getElementById('f-date').value = data.date || HMC_DB.getPSTDate();
-  document.getElementById('f-time').value = data.time || HMC_DB.getPSTTime();
+  document.getElementById('f-date').value = formatDateForInput(data.date);
+  document.getElementById('f-time').value = formatTimeForDisplay(data.time);
   document.getElementById('f-visit').value = data.visitNo || '1';
   document.getElementById('f-name').value = data.name || '';
   document.getElementById('f-relation').value = data.relation || 'S/O';
@@ -970,7 +1037,8 @@ function openPrescriptionPreview(isDirectPrint = false) {
   document.getElementById('prx-name').textContent = d.name || '';
   document.getElementById('prx-relation-lbl').textContent = (d.relation || 'S/O') + ':';
   document.getElementById('prx-parent-name').textContent = d.parentage || '';
-  document.getElementById('prx-date').textContent = d.date || '';
+  const printDate = d.date || HMC_DB.getPSTDate();
+  document.getElementById('prx-date').textContent = formatPrintDate(printDate);
 
   // Patient info row 2
   document.getElementById('prx-age').textContent = d.age ? `${d.age} Y` : '';
@@ -1425,12 +1493,19 @@ function lockSystemNow() {
 }
 
 // ── SETTINGS & CLOUD SYNC ─────────────────────────────────────────────
+const DEFAULT_CLOUD_SYNC_URL = 'https://script.google.com/macros/s/AKfycbzTyJjQRhvDtPOCJXkDj-BiUsO3d8Ou82xwH-p99hVDO87-dDkYzjOu5dKCgRcEP24L/exec';
+
+function getCloudSyncUrl() {
+  const custom = (localStorage.getItem('hmc_cloud_sync_url') || '').trim();
+  return custom || DEFAULT_CLOUD_SYNC_URL;
+}
+
 function openSettingsModal() {
   const modal = document.getElementById('modal-settings');
   if (!modal) return;
   modal.classList.add('open');
 
-  const cloudUrl = localStorage.getItem('hmc_cloud_sync_url') || '';
+  const cloudUrl = getCloudSyncUrl();
   const autoSync = localStorage.getItem('hmc_auto_sync') !== 'false';
   const urlInp = document.getElementById('set-cloud-url');
   if (urlInp) urlInp.value = cloudUrl;
@@ -1484,14 +1559,64 @@ function saveCloudSyncConfig() {
   const url = (urlInp ? urlInp.value : '').trim();
   const auto = autoInp ? autoInp.checked : true;
 
-  localStorage.setItem('hmc_cloud_sync_url', url);
+  localStorage.setItem('hmc_cloud_sync_url', url || DEFAULT_CLOUD_SYNC_URL);
   localStorage.setItem('hmc_auto_sync', auto ? 'true' : 'false');
   showToast('Cloud Sync settings saved successfully!', 'success');
 }
 
+function getCloudSyncUrl() {
+  const custom = (localStorage.getItem('hmc_cloud_sync_url') || '').trim();
+  if (custom && custom.startsWith('https://script.google.com/macros/s/') && custom.endsWith('/exec')) {
+    return custom;
+  }
+  return DEFAULT_CLOUD_SYNC_URL;
+}
+
+async function testCloudSyncConnection() {
+  const urlInp = document.getElementById('set-cloud-url');
+  const url = (urlInp ? urlInp.value : '').trim() || getCloudSyncUrl();
+  const testBtn = document.getElementById('btn-test-sync');
+
+  if (window.location.protocol === 'file:') {
+    showToast('⚠️ Browsers block cloud API calls when opening HTML files via file:///. Please open using localhost:3000 or your Vercel URL.', 'warning', 7000);
+    return;
+  }
+
+  if (!url.startsWith('https://script.google.com/macros/s/') || !url.endsWith('/exec')) {
+    showToast('Invalid URL format! It must start with https://script.google.com/macros/s/ and end with /exec', 'error');
+    return;
+  }
+
+  try {
+    if (testBtn) testBtn.textContent = '⏳ Testing...';
+    const res = await fetch(url + (url.includes('?') ? '&' : '?') + 'action=status', {
+      method: 'GET',
+      mode: 'cors',
+      redirect: 'follow',
+      credentials: 'omit'
+    });
+    const data = await res.json();
+    if (data && data.success) {
+      showToast('✅ Connected! Google Apps Script is Active & Ready.', 'success', 5000);
+    } else {
+      showToast('⚠️ Script reached but returned: ' + (data.message || 'Error'), 'info');
+    }
+  } catch (err) {
+    showToast('❌ Connection failed: ' + err.message + '. Please ensure Web App deployment has "Who has access: Anyone".', 'error', 6000);
+  } finally {
+    if (testBtn) testBtn.textContent = '⚡ Test Connection';
+  }
+}
+
 async function handleCloudSyncClick(silent = false) {
-  const cloudUrl = (localStorage.getItem('hmc_cloud_sync_url') || '').trim();
+  const cloudUrl = getCloudSyncUrl();
   const btn = document.getElementById('btn-header-sync');
+
+  if (window.location.protocol === 'file:') {
+    if (!silent) {
+      showToast('Notice: For Cloud Sync, run the app via server (http://localhost:3000) or Vercel, not file:///. Browsers block redirects on local files.', 'warning', 7000);
+    }
+  }
 
   if (!cloudUrl) {
     if (!silent) {
@@ -1512,7 +1637,10 @@ async function handleCloudSyncClick(silent = false) {
 
     const response = await fetch(cloudUrl, {
       method: 'POST',
-      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+      mode: 'cors',
+      redirect: 'follow',
+      credentials: 'omit',
+      headers: { 'Content-Type': 'text/plain' },
       body: JSON.stringify({
         action: 'syncFullDatabase',
         data: localData.data,
@@ -1520,7 +1648,13 @@ async function handleCloudSyncClick(silent = false) {
       })
     });
 
-    const result = await response.json();
+    const text = await response.text();
+    let result = null;
+    try {
+      result = JSON.parse(text);
+    } catch (parseErr) {
+      throw new Error('Google Apps Script returned invalid response. Make sure Web App is deployed as "New version".');
+    }
 
     if (result && result.success) {
       if (result.data) {
@@ -1542,7 +1676,11 @@ async function handleCloudSyncClick(silent = false) {
   } catch (err) {
     console.error('Cloud sync error:', err);
     if (!silent) {
-      showToast('Sync notice: ' + (err.message || 'Offline/Network error'), 'error');
+      if (window.location.protocol === 'file:') {
+        showToast('Sync notice: Browsers block cloud API on file:///. Please run using "npm run dev" (localhost:3000) or your Vercel link.', 'error', 7000);
+      } else {
+        showToast('Sync notice: ' + (err.message || 'Offline/Network error'), 'error');
+      }
     }
     if (btn) {
       btn.classList.remove('syncing');
@@ -1553,7 +1691,7 @@ async function handleCloudSyncClick(silent = false) {
 
 function triggerBackgroundAutoSync() {
   const auto = localStorage.getItem('hmc_auto_sync') !== 'false';
-  const url = (localStorage.getItem('hmc_cloud_sync_url') || '').trim();
+  const url = getCloudSyncUrl();
   if (auto && url) {
     handleCloudSyncClick(true);
   }

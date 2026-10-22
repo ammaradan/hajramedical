@@ -4,23 +4,52 @@
  * Google Apps Script Cloud Sync Backend
  * ====================================================================
  * 
- * HOW TO DEPLOY FOR ONLINE MULTI-DEVICE SYNCHRONIZATION:
- * 1. Open Google Sheets (create a new blank spreadsheet: "Hajra Medical Complex Records")
- * 2. In Google Sheets menu, click: Extensions -> Apps Script
- * 3. Delete any code in Code.gs, paste this entire file contents, and click Save (💾).
- * 4. Click: Deploy -> New deployment
- * 5. Select type: "Web app"
- * 6. Set Description: "Hajra Medical Complex Sync API"
- * 7. Set "Execute as": "Me"
- * 8. Set "Who has access": "Anyone"
- * 9. Click "Deploy", authorize permissions when prompted.
- * 10. Copy the "Web app URL" (starts with https://script.google.com/macros/s/...)
- * 11. Open your Hajra Medical Complex web app -> Click "⚙️ Settings" in header ->
- *     Paste the Web app URL in "Cloud Sync Web App URL" -> Click "Save Sync URL".
- * 12. That's it! Click "☁ Sync" anytime or let it auto-sync on save across all devices!
+ * REQUESTED SHEET COLUMNS (Patient Records):
+ * 1.  Serial No
+ * 2.  Patient ID (MR Number)
+ * 3.  Date
+ * 4.  Visit No
+ * 5.  Patient Name
+ * 6.  Parentage (Relation + Name)
+ * 7.  Age
+ * 8.  Gender
+ * 9.  Weight
+ * 10. Phone Number
+ * 11. Address
+ * 12. Allergy
+ * 13. Symptoms / History / Condition
+ * 14. Findings
+ * 15. Treatment
+ * 
+ * HOW TO UPDATE IN GOOGLE APPS SCRIPT:
+ * 1. Open your Google Sheet ("Hajra Medical Complex Records")
+ * 2. Click: Extensions -> Apps Script
+ * 3. Replace all code in Code.gs with this file
+ * 4. Click Save (💾)
+ * 5. Click Deploy -> Manage deployments -> Click the Edit (pencil) icon ->
+ *    Select "New version" -> Click Deploy!
  */
 
 var SCRIPT_PROP = PropertiesService.getScriptProperties();
+
+// The exact headings requested
+var HEADINGS = [
+  'Serial No',
+  'Patient ID',
+  'Date',
+  'Visit No',
+  'Patient Name',
+  'Parentage',
+  'Age',
+  'Gender',
+  'Weight',
+  'Phone Number',
+  'Address',
+  'Allergy',
+  'Symptoms / History / Condition',
+  'Findings',
+  'Treatment'
+];
 
 function doGet(e) {
   return handleRequest(e);
@@ -51,6 +80,7 @@ function handleRequest(e) {
       return jsonResponse({
         success: true,
         message: 'Hajra Medical Complex Sync Service is Active',
+        headings: HEADINGS,
         timestamp: new Date().toISOString()
       });
     }
@@ -59,54 +89,27 @@ function handleRequest(e) {
       var ss = SpreadsheetApp.getActiveSpreadsheet();
       var incoming = payload.data || {};
 
-      // 1. Save Patients
-      if (incoming.patients && incoming.patients.length > 0) {
-        syncSheetTable(ss, 'Patients', incoming.patients, ['mrNumber', 'name', 'phone', 'cnic', 'updatedAt']);
-      }
+      // 1. Sync the primary user-requested sheet: "Patient Records"
+      syncPatientRecordsSheet(ss, incoming.visits || []);
 
-      // 2. Save Visits
-      if (incoming.visits && incoming.visits.length > 0) {
-        syncSheetTable(ss, 'Visits', incoming.visits, [
-          'serialNo', 'mrNumber', 'date', 'time', 'visitNo',
-          'name', 'relation', 'parentage', 'age', 'gender', 'weight',
-          'phone', 'cnic', 'address', 'temp', 'bp', 'rr', 'pulse',
-          'allergy', 'symptoms', 'findings', 'diagnosis', 'treatment', 'revisit'
-        ]);
-      }
-
-      // 3. Save Payments
+      // 2. Also sync Payments, Appointments, and full DB snapshot for 100% lossless multi-device sync
       if (incoming.payments && incoming.payments.length > 0) {
-        syncSheetTable(ss, 'Payments', incoming.payments, [
-          'paymentId', 'receiptNo', 'mrNumber', 'patientName', 'date', 'time',
-          'consultationFee', 'proceduresFee', 'otherFee', 'totalFee', 'discount',
-          'netAmount', 'receivedAmount', 'changeDue', 'paymentMode', 'notes'
-        ]);
+        syncPaymentsSheet(ss, incoming.payments);
       }
 
-      // 4. Save Appointments
       if (incoming.appointments && incoming.appointments.length > 0) {
-        syncSheetTable(ss, 'Appointments', incoming.appointments, [
-          'apptId', 'tokenNo', 'date', 'time', 'mrNumber', 'name', 'phone', 'fee', 'status', 'notes'
-        ]);
+        syncAppointmentsSheet(ss, incoming.appointments);
       }
 
-      // 5. Save Clinical Templates
-      if (incoming.templates && incoming.templates.length > 0) {
-        syncSheetTable(ss, 'Templates', incoming.templates, ['id', 'name', 'cat', 'body']);
-      }
+      // Store complete JSON state in a backup tab so mobile/PC sync never loses rich data
+      storeFullState(ss, incoming);
 
-      // Read back all merged data from sheets to ensure 2-way multi-device synchronization
-      var allData = {
-        patients: readSheetTable(ss, 'Patients'),
-        visits: readSheetTable(ss, 'Visits'),
-        payments: readSheetTable(ss, 'Payments'),
-        appointments: readSheetTable(ss, 'Appointments'),
-        templates: readSheetTable(ss, 'Templates')
-      };
+      // Read back all merged data
+      var allData = readFullState(ss, incoming);
 
       return jsonResponse({
         success: true,
-        message: 'All records synchronized successfully',
+        message: 'All records synchronized successfully with custom headings',
         data: allData,
         timestamp: new Date().toISOString()
       });
@@ -121,13 +124,34 @@ function handleRequest(e) {
   }
 }
 
-function syncSheetTable(ss, sheetName, items, headers) {
+/**
+ * Syncs the primary "Patient Records" sheet with exact user-requested columns
+ */
+function syncPatientRecordsSheet(ss, visits) {
+  var sheetName = 'Patient Records';
   var sheet = ss.getSheetByName(sheetName);
   if (!sheet) {
-    sheet = ss.insertSheet(sheetName);
-    sheet.appendRow(headers);
-    sheet.getRange(1, 1, 1, headers.length).setFontWeight('bold').setBackground('#E8F5EC');
+    // Check if default Sheet1 exists, rename it; otherwise insert new sheet
+    var firstSheet = ss.getSheets()[0];
+    if (firstSheet && firstSheet.getName() === 'Sheet1') {
+      sheet = firstSheet;
+      sheet.setName(sheetName);
+    } else {
+      sheet = ss.insertSheet(sheetName, 0);
+    }
   }
+
+  // Ensure Header row exists and is styled
+  var headerRange = sheet.getRange(1, 1, 1, HEADINGS.length);
+  headerRange.setValues([HEADINGS]);
+  headerRange.setFontWeight('bold')
+    .setBackground('#0D2B45')
+    .setFontColor('#FFFFFF')
+    .setFontSize(10)
+    .setHorizontalAlignment('center')
+    .setVerticalAlignment('middle');
+  sheet.setRowHeight(1, 35);
+  sheet.setFrozenRows(1);
 
   // Clear existing data rows (keep header)
   var lastRow = sheet.getLastRow();
@@ -135,41 +159,247 @@ function syncSheetTable(ss, sheetName, items, headers) {
     sheet.getRange(2, 1, lastRow - 1, sheet.getLastColumn()).clearContent();
   }
 
-  // Prepare 2D matrix
+  if (!visits || visits.length === 0) return;
+
+  // Build rows matching the exact 15 headings
   var rows = [];
-  for (var i = 0; i < items.length; i++) {
-    var item = items[i];
-    var row = [];
-    for (var h = 0; h < headers.length; h++) {
-      var val = item[headers[h]];
-      row.push(val !== undefined && val !== null ? val : '');
+  for (var i = 0; i < visits.length; i++) {
+    var v = visits[i];
+    var parentageStr = '';
+    if (v.relation && v.parentage) {
+      parentageStr = v.relation + ' ' + v.parentage;
+    } else {
+      parentageStr = v.parentage || v.relation || '';
     }
+
+    var cleanDate = v.date || '';
+    if (typeof cleanDate === 'string' && cleanDate.indexOf('T') !== -1) {
+      cleanDate = cleanDate.split('T')[0];
+    }
+    var cleanTime = v.time || '';
+    if (typeof cleanTime === 'string' && (cleanTime.indexOf('1899-12-30') !== -1 || cleanTime.indexOf('1899-12-31') !== -1)) {
+      try {
+        var dt = new Date(cleanTime);
+        cleanTime = Utilities.formatDate(dt, 'Asia/Karachi', 'hh:mm:ss a');
+      } catch (e) {
+        cleanTime = '';
+      }
+    }
+
+    var row = [
+      v.serialNo || (i + 1),                      // 1. Serial No
+      v.mrNumber || '',                           // 2. Patient ID
+      cleanDate + (cleanTime ? ' ' + cleanTime : ''), // 3. Date
+      v.visitNo !== undefined ? v.visitNo : 1,    // 4. Visit No
+      v.name || '',                               // 5. Patient Name
+      parentageStr,                               // 6. Parentage
+      v.age || '',                                // 7. Age
+      v.gender || 'Male',                         // 8. Gender
+      v.weight || '',                             // 9. Weight
+      v.phone || '',                              // 10. Phone Number
+      v.address || '',                            // 11. Address
+      v.allergy || '',                            // 12. Allergy
+      stripHtmlToPlainText(v.symptoms || ''),     // 13. Symptoms / History / Condition
+      stripHtmlToPlainText(v.findings || ''),     // 14. Findings
+      stripHtmlToPlainText(v.treatment || '')      // 15. Treatment
+    ];
     rows.push(row);
   }
 
   if (rows.length > 0) {
-    sheet.getRange(2, 1, rows.length, headers.length).setValues(rows);
+    var dataRange = sheet.getRange(2, 1, rows.length, HEADINGS.length);
+    dataRange.setValues(rows);
+    dataRange.setVerticalAlignment('top');
+    dataRange.setWrap(true);
+    dataRange.setFontSize(9.5);
+
+    // Apply alternating row backgrounds for readability
+    for (var r = 0; r < rows.length; r++) {
+      var rowNum = r + 2;
+      var bg = (r % 2 === 0) ? '#FFFFFF' : '#F8FAFC';
+      sheet.getRange(rowNum, 1, 1, HEADINGS.length).setBackground(bg);
+    }
+  }
+
+  // Set friendly column widths
+  sheet.setColumnWidth(1, 70);   // Serial No
+  sheet.setColumnWidth(2, 100);  // Patient ID
+  sheet.setColumnWidth(3, 110);  // Date
+  sheet.setColumnWidth(4, 70);   // Visit No
+  sheet.setColumnWidth(5, 150);  // Patient Name
+  sheet.setColumnWidth(6, 140);  // Parentage
+  sheet.setColumnWidth(7, 60);   // Age
+  sheet.setColumnWidth(8, 70);   // Gender
+  sheet.setColumnWidth(9, 70);   // Weight
+  sheet.setColumnWidth(10, 120); // Phone Number
+  sheet.setColumnWidth(11, 160); // Address
+  sheet.setColumnWidth(12, 120); // Allergy
+  sheet.setColumnWidth(13, 220); // Symptoms / History
+  sheet.setColumnWidth(14, 200); // Findings
+  sheet.setColumnWidth(15, 260); // Treatment
+}
+
+/**
+ * Saves Billing & Payments
+ */
+function syncPaymentsSheet(ss, payments) {
+  var headers = ['Receipt No', 'Date & Time', 'Patient ID', 'Patient Name', 'Total Fee', 'Discount', 'Net Amount', 'Received', 'Due/Change', 'Payment Mode'];
+  var sheet = getOrCreateSheet(ss, 'Payments', headers, '#164264');
+  
+  var lastRow = sheet.getLastRow();
+  if (lastRow > 1) {
+    sheet.getRange(2, 1, lastRow - 1, sheet.getLastColumn()).clearContent();
+  }
+
+  var rows = [];
+  for (var i = 0; i < payments.length; i++) {
+    var p = payments[i];
+    rows.push([
+      p.receiptNo || '',
+      (p.date || '') + ' ' + (p.time || ''),
+      p.mrNumber || '',
+      p.patientName || '',
+      p.totalFee || 0,
+      p.discount || 0,
+      p.netAmount || 0,
+      p.receivedAmount || 0,
+      p.changeDue || 0,
+      p.paymentMode || 'Cash'
+    ]);
+  }
+
+  if (rows.length > 0) {
+    var r = sheet.getRange(2, 1, rows.length, headers.length);
+    r.setValues(rows);
+    r.setVerticalAlignment('top');
   }
 }
 
-function readSheetTable(ss, sheetName) {
-  var sheet = ss.getSheetByName(sheetName);
-  if (!sheet) return [];
-  var data = sheet.getDataRange().getValues();
-  if (data.length <= 1) return [];
+/**
+ * Saves Appointments
+ */
+function syncAppointmentsSheet(ss, appointments) {
+  var headers = ['Token No', 'Date', 'Time', 'Patient ID', 'Name', 'Phone', 'Fee', 'Status', 'Notes'];
+  var sheet = getOrCreateSheet(ss, 'Appointments', headers, '#008060');
 
-  var headers = data[0];
-  var result = [];
-
-  for (var i = 1; i < data.length; i++) {
-    var row = data[i];
-    var obj = {};
-    for (var h = 0; h < headers.length; h++) {
-      obj[headers[h]] = row[h];
-    }
-    result.push(obj);
+  var lastRow = sheet.getLastRow();
+  if (lastRow > 1) {
+    sheet.getRange(2, 1, lastRow - 1, sheet.getLastColumn()).clearContent();
   }
-  return result;
+
+  var rows = [];
+  for (var i = 0; i < appointments.length; i++) {
+    var a = appointments[i];
+    rows.push([
+      a.tokenNo || (i + 1),
+      a.date || '',
+      a.time || '',
+      a.mrNumber || '',
+      a.name || '',
+      a.phone || '',
+      a.fee || 0,
+      a.status || 'waiting',
+      a.notes || ''
+    ]);
+  }
+
+  if (rows.length > 0) {
+    var r = sheet.getRange(2, 1, rows.length, headers.length);
+    r.setValues(rows);
+    r.setVerticalAlignment('top');
+  }
+}
+
+/**
+ * Stores full JSON snapshot in a dedicated sync sheet for lossless cross-device sync
+ */
+function storeFullState(ss, incoming) {
+  var sheet = ss.getSheetByName('_Sync_Data_Store');
+  if (!sheet) {
+    sheet = ss.insertSheet('_Sync_Data_Store');
+    sheet.hideSheet(); // Keep hidden from normal view
+  }
+  sheet.clear();
+
+  // Clean any old 1899 epoch or invalid ISO strings from visits
+  if (incoming && incoming.visits && incoming.visits.length > 0) {
+    for (var i = 0; i < incoming.visits.length; i++) {
+      var item = incoming.visits[i];
+      if (item.time && typeof item.time === 'string' && (item.time.indexOf('1899-12-30') !== -1 || item.time.indexOf('1899-12-31') !== -1)) {
+        try {
+          var dt = new Date(item.time);
+          item.time = Utilities.formatDate(dt, 'Asia/Karachi', 'hh:mm:ss a');
+        } catch (e) {
+          item.time = '';
+        }
+      }
+      if (item.date && typeof item.date === 'string' && item.date.indexOf('T') !== -1) {
+        item.date = item.date.split('T')[0];
+      }
+    }
+  }
+
+  var jsonStr = JSON.stringify(incoming);
+  // Break into chunks of 45000 characters if large
+  var chunkSize = 45000;
+  var chunks = [];
+  for (var i = 0; i < jsonStr.length; i += chunkSize) {
+    chunks.push([jsonStr.substring(i, i + chunkSize)]);
+  }
+  if (chunks.length > 0) {
+    sheet.getRange(1, 1, chunks.length, 1).setValues(chunks);
+  }
+}
+
+function readFullState(ss, fallback) {
+  try {
+    var sheet = ss.getSheetByName('_Sync_Data_Store');
+    if (!sheet) return fallback;
+    var lastRow = sheet.getLastRow();
+    if (lastRow < 1) return fallback;
+    var values = sheet.getRange(1, 1, lastRow, 1).getValues();
+    var fullStr = '';
+    for (var i = 0; i < values.length; i++) {
+      fullStr += values[i][0];
+    }
+    return JSON.parse(fullStr);
+  } catch (err) {
+    return fallback;
+  }
+}
+
+function getOrCreateSheet(ss, name, headers, headerColor) {
+  var sheet = ss.getSheetByName(name);
+  if (!sheet) {
+    sheet = ss.insertSheet(name);
+    var hRange = sheet.getRange(1, 1, 1, headers.length);
+    hRange.setValues([headers]);
+    hRange.setFontWeight('bold').setBackground(headerColor || '#0D2B45').setFontColor('#FFFFFF');
+    sheet.setFrozenRows(1);
+  }
+  return sheet;
+}
+
+/**
+ * Converts rich HTML formatting (e.g. from prescription editor) into clean plain text with bullets
+ */
+function stripHtmlToPlainText(html) {
+  if (!html) return '';
+  var text = String(html);
+  text = text.replace(/<br\s*[\/]?>/gi, '\n');
+  text = text.replace(/<li[^>]*>/gi, '• ');
+  text = text.replace(/<\/li>/gi, '\n');
+  text = text.replace(/<\/(p|div|h[1-6])>/gi, '\n');
+  text = text.replace(/<[^>]+>/g, '');
+  text = text.replace(/&nbsp;/gi, ' ')
+             .replace(/&amp;/gi, '&')
+             .replace(/&lt;/gi, '<')
+             .replace(/&gt;/gi, '>')
+             .replace(/&quot;/gi, '"')
+             .replace(/&#39;/gi, "'");
+  text = text.replace(/\r/g, '');
+  text = text.replace(/\n{3,}/g, '\n\n');
+  return text.trim();
 }
 
 function jsonResponse(obj) {

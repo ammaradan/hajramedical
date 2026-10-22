@@ -10,13 +10,24 @@ let DB_VERSION = 3;
 let _dbInstance = null;
 
 function getPSTDate() {
-  const pst = new Date(Date.now() + 5 * 3600000);
-  return pst.toISOString().slice(0, 10);
+  try {
+    const d = new Date();
+    const nf = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Karachi', year: 'numeric', month: '2-digit', day: '2-digit' });
+    return nf.format(d); // Guarantees YYYY-MM-DD
+  } catch (e) {
+    const pst = new Date(Date.now() + 5 * 3600000);
+    return pst.toISOString().slice(0, 10);
+  }
 }
 
 function getPSTTime() {
-  const pst = new Date(Date.now() + 5 * 3600000);
-  return pst.toISOString().slice(11, 19);
+  try {
+    const d = new Date();
+    return d.toLocaleTimeString('en-US', { timeZone: 'Asia/Karachi', hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true });
+  } catch (e) {
+    const pst = new Date(Date.now() + 5 * 3600000);
+    return pst.toISOString().slice(11, 19);
+  }
 }
 
 function initDB(versionToUse) {
