@@ -919,51 +919,41 @@ async function exportPatientsToCSV() {
         'Date',
         'Visit No',
         'Patient Name',
-        'Relation',
         'Parentage',
         'Age',
         'Gender',
         'Weight',
         'Phone Number',
-        'CNIC',
         'Address',
-        'Temp',
-        'BP',
-        'Pulse',
         'Allergy',
         'Symptoms / History / Condition',
         'Findings',
-        'Diagnosis',
-        'Treatment',
-        'Revisit Days'
+        'Treatment'
       ];
 
       const csvLines = [headers.map(h => csvEsc(h)).join(',')];
 
       rows.forEach(r => {
+        const rel = r.relation || 'S/O';
+        const par = r.parentage || '';
+        const fullParentage = par ? (par.startsWith('S/O') || par.startsWith('D/O') || par.startsWith('W/O') || par.startsWith('H/O') ? par : (rel + ' ' + par)) : '';
+
         const line = [
           csvEsc(r.serialNo || ''),
           csvEsc(r.mrNumber || ''),
           csvEsc((r.date || '') + (r.time ? ' ' + r.time : '')),
           csvEsc(r.visitNo !== undefined ? r.visitNo : 1),
           csvEsc(r.name || ''),
-          csvEsc(r.relation || 'S/O'),
-          csvEsc(r.parentage || ''),
+          csvEsc(fullParentage),
           csvEsc(r.age || ''),
           csvEsc(r.gender || 'Male'),
           csvEsc(r.weight || ''),
           csvEsc(r.phone || ''),
-          csvEsc(r.cnic || ''),
           csvEsc(r.address || ''),
-          csvEsc(r.temp || ''),
-          csvEsc(r.bp || ''),
-          csvEsc(r.pulse || ''),
           csvEsc(cleanPlainText(r.allergy || '')),
           csvEsc(cleanPlainText(r.symptoms || '')),
           csvEsc(cleanPlainText(r.findings || '')),
-          csvEsc(cleanPlainText(r.diagnosis || '')),
-          csvEsc(cleanPlainText(r.treatment || '')),
-          csvEsc(r.revisit || '')
+          csvEsc(cleanPlainText(r.treatment || ''))
         ];
         csvLines.push(line.join(','));
       });
