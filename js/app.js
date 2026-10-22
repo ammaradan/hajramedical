@@ -1811,6 +1811,48 @@ function switchMobileView(view) {
   }
 }
 
+// ── COLLAPSIBLE HEADER MENU ─────────────────────────────────────────
+function toggleHeaderMenu(e) {
+  if (e) {
+    e.stopPropagation();
+    e.preventDefault();
+  }
+  const menu = document.getElementById('header-dropdown-menu');
+  const btn = document.getElementById('btn-header-menu');
+  if (!menu) return;
+  const isShow = menu.classList.contains('show');
+  if (isShow) {
+    closeHeaderMenu();
+  } else {
+    menu.classList.add('show');
+    if (btn) btn.classList.add('open');
+  }
+}
+
+function closeHeaderMenu() {
+  const menu = document.getElementById('header-dropdown-menu');
+  const btn = document.getElementById('btn-header-menu');
+  if (menu) menu.classList.remove('show');
+  if (btn) btn.classList.remove('open');
+}
+
+function selectMenuItem(actionFn) {
+  closeHeaderMenu();
+  if (typeof actionFn === 'function') {
+    setTimeout(() => {
+      actionFn();
+    }, 40);
+  }
+}
+
+// Close header menu on any outside click
+document.addEventListener('click', (e) => {
+  const wrap = document.getElementById('header-menu-wrap');
+  if (wrap && !wrap.contains(e.target)) {
+    closeHeaderMenu();
+  }
+});
+
 // ── MODALS HELPER ───────────────────────────────────────────────────
 function setupModals() {
   document.querySelectorAll('.modal-backdrop').forEach(modal => {

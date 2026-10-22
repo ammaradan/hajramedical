@@ -28,33 +28,65 @@
         <span id="header-clock-time">Loading...</span>
       </div>
 
-      <button class="hbtn hbtn-primary" onclick="openAppointmentsModal()" title="Daily Appointments & Tokens">
-        <span>📅</span> Appointments
-      </button>
-
-      <button class="hbtn hbtn-primary" onclick="openBillingModal()" title="Billing & Receipts">
-        <span>💳</span> Billing
-      </button>
-
-      <button class="hbtn hbtn-primary" onclick="openDatabasePrompt()" title="Database Access & Backup">
-        <span>💾</span> Database
-      </button>
-
-      <button class="hbtn hbtn-sheet" onclick="openGoogleSheetDirectly()" title="Open Live Google Sheet in Browser">
-        <span>📊</span> Google Sheet
-      </button>
-
+      <!-- Cloud Sync Button -->
       <button class="hbtn hbtn-sync" id="btn-header-sync" onclick="handleCloudSyncClick()" title="Cloud Data Sync (Multi-Device)">
         <span>☁</span> Sync
       </button>
 
-      <button class="hbtn hbtn-settings" onclick="openSettingsModal()" title="Settings & Change Password">
-        <span>⚙️</span> Settings
-      </button>
+      <!-- Collapsible Actions Menu -->
+      <div class="header-menu-wrap" id="header-menu-wrap">
+        <button type="button" class="hbtn hbtn-menu" id="btn-header-menu" onclick="toggleHeaderMenu(event)" title="Open Clinic Navigation Menu">
+          <span>☰</span>
+          <span>Menu</span>
+          <span class="menu-arrow" id="menu-arrow">▾</span>
+        </button>
 
-      <button class="hbtn hbtn-templates" id="btn-toggle-templates" onclick="toggleTemplatesPanel()" title="Toggle Clinical Templates">
-        <span>⚡</span> Clinical Templates
-      </button>
+        <div class="header-dropdown-menu" id="header-dropdown-menu">
+          <div class="dropdown-header">Clinic Management</div>
+          
+          <button type="button" class="dropdown-item" onclick="selectMenuItem(openAppointmentsModal)">
+            <span class="d-icon">📅</span>
+            <div class="d-info">
+              <span class="d-title">Appointments & Tokens</span>
+              <span class="d-desc">Daily patient tokens & waiting list</span>
+            </div>
+          </button>
+
+          <button type="button" class="dropdown-item" onclick="selectMenuItem(openBillingModal)">
+            <span class="d-icon">💳</span>
+            <div class="d-info">
+              <span class="d-title">Billing & Receipts</span>
+              <span class="d-desc">Consultation fees & payment receipts</span>
+            </div>
+          </button>
+
+          <button type="button" class="dropdown-item" onclick="selectMenuItem(openDatabasePrompt)">
+            <span class="d-icon">💾</span>
+            <div class="d-info">
+              <span class="d-title">Database & Backup</span>
+              <span class="d-desc">Excel export, Live Google Sheet & Backup</span>
+            </div>
+          </button>
+
+          <button type="button" class="dropdown-item" onclick="selectMenuItem(toggleTemplatesPanel)">
+            <span class="d-icon">⚡</span>
+            <div class="d-info">
+              <span class="d-title">Clinical Templates</span>
+              <span class="d-desc">Quick phrases & disease templates</span>
+            </div>
+          </button>
+
+          <div class="dropdown-divider"></div>
+
+          <button type="button" class="dropdown-item" onclick="selectMenuItem(openSettingsModal)">
+            <span class="d-icon">⚙️</span>
+            <div class="d-info">
+              <span class="d-title">Settings</span>
+              <span class="d-desc">Cloud sync setup & change password</span>
+            </div>
+          </button>
+        </div>
+      </div>
 
       <div id="header-net-badge" class="net-badge online" title="Network Status: Online">
         <span class="net-dot">●</span> <span class="net-text">Online</span>

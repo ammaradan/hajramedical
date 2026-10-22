@@ -1257,6 +1257,139 @@ body {
   50% { opacity: 0.5; transform: scale(0.85); }
 }
 
+/* ── COLLAPSIBLE HEADER MENU ─────────────────────────────────────── */
+.header-menu-wrap {
+  position: relative;
+  display: inline-block;
+}
+
+.hbtn-menu {
+  background: rgba(255, 255, 255, 0.16);
+  color: #ffffff;
+  border: 1px solid rgba(255, 255, 255, 0.28);
+  font-weight: 700;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  user-select: none;
+}
+
+.hbtn-menu:hover, .hbtn-menu.open {
+  background: rgba(255, 255, 255, 0.28);
+  border-color: rgba(255, 255, 255, 0.45);
+}
+
+.hbtn-menu .menu-arrow {
+  font-size: 11px;
+  transition: transform 0.2s ease;
+  display: inline-block;
+}
+
+.hbtn-menu.open .menu-arrow {
+  transform: rotate(180deg);
+}
+
+.header-dropdown-menu {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  background: #ffffff;
+  color: var(--text-main);
+  border: 1px solid var(--border-dark);
+  border-radius: var(--radius-md);
+  box-shadow: 0 14px 35px rgba(13, 43, 69, 0.25), 0 4px 10px rgba(0, 0, 0, 0.08);
+  min-width: 270px;
+  padding: 6px;
+  z-index: 10005;
+  display: none;
+  flex-direction: column;
+  gap: 3px;
+  animation: dropSlideDown 0.18s ease-out;
+}
+
+.header-dropdown-menu.show {
+  display: flex;
+}
+
+@keyframes dropSlideDown {
+  from {
+    opacity: 0;
+    transform: translateY(-8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.dropdown-header {
+  font-size: 10.5px;
+  font-weight: 800;
+  color: var(--text-light);
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+  padding: 8px 10px 4px 10px;
+}
+
+.dropdown-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  padding: 9px 12px;
+  border: none;
+  background: transparent;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  text-align: left;
+  transition: background 0.15s ease, transform 0.1s ease;
+  color: var(--text-main);
+  font-family: inherit;
+}
+
+.dropdown-item:hover {
+  background: #f1f5f9;
+}
+
+.dropdown-item .d-icon {
+  font-size: 18px;
+  line-height: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  border-radius: 6px;
+  background: #f8fafc;
+  flex-shrink: 0;
+}
+
+.dropdown-item .d-info {
+  display: flex;
+  flex-direction: column;
+  line-height: 1.25;
+}
+
+.dropdown-item .d-title {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--navy);
+}
+
+.dropdown-item .d-desc {
+  font-size: 11px;
+  color: var(--text-light);
+  margin-top: 1px;
+}
+
+.dropdown-divider {
+  height: 1px;
+  background: var(--border);
+  margin: 4px 6px;
+}
+
 /* ── SYSTEM LOGIN OVERLAY ───────────────────────────────────────── */
 .login-overlay {
   position: fixed;
