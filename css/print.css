@@ -226,11 +226,13 @@
 /* Unified Prescription Footer & Urdu Consent Box */
 .rx-footer-box {
   margin-top: 2.5mm;
+  margin-bottom: 1.5mm;
   border: 1.5px solid #000;
   box-sizing: border-box;
   width: 100%;
   background: #FFFFFF;
   flex-shrink: 0;
+  overflow: hidden;
 }
 
 .rx-consent-box {
@@ -257,17 +259,19 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  border: none;
+  border-top: 1px solid #000;
+  border-bottom: none;
   font-size: 8.5pt;
   font-weight: 700;
   font-family: "Calibri", "Segoe UI", Arial, sans-serif;
   box-sizing: border-box;
   width: 100%;
-  background: #FFFFFF;
+  background: #F8FAFC;
+  padding: 1.2mm 2mm;
 }
 
 .rx-footer-col {
-  padding: 1.2mm 2.5mm;
+  padding: 0.5mm 1.5mm;
   white-space: nowrap;
   box-sizing: border-box;
 }
@@ -280,7 +284,7 @@
 .rx-col-contact {
   flex: 1 1 auto;
   text-align: center;
-  padding: 1.2mm 3mm;
+  padding: 0.5mm 2mm;
 }
 
 .rx-col-timings {
@@ -312,6 +316,8 @@
     padding: 0 !important;
     margin: 0 !important;
     width: 100% !important;
+    height: auto !important;
+    overflow: visible !important;
   }
 
   /* Hide standard UI elements during print */
@@ -328,6 +334,7 @@
   }
 
   /* When modal-rx-preview is open for print */
+  #modal-rx-preview,
   #modal-rx-preview.open {
     display: block !important;
     position: static !important;
@@ -336,9 +343,13 @@
     margin: 0 !important;
     width: 100% !important;
     box-shadow: none !important;
+    border: none !important;
+    overflow: visible !important;
   }
 
-  #modal-rx-preview.open .modal-card {
+  #modal-rx-preview.open .modal-card,
+  #modal-rx-preview.open .modal-body,
+  .print-sheet-wrap {
     box-shadow: none !important;
     border: none !important;
     max-width: 100% !important;
@@ -347,29 +358,26 @@
     margin: 0 !important;
     background: transparent !important;
     width: 100% !important;
-  }
-
-  #modal-rx-preview.open .modal-body {
-    background: transparent !important;
-    padding: 0 !important;
-    margin: 0 !important;
+    overflow: visible !important;
     display: block !important;
   }
 
   #rx-a4-page {
     box-shadow: none !important;
     width: 100% !important;
-    height: 280mm !important;
-    min-height: 280mm !important;
-    max-height: 280mm !important;
+    height: auto !important;
+    min-height: 0 !important;
+    max-height: 278mm !important;
     padding: 0 !important;
-    margin: 0 !important;
+    margin: 0 auto !important;
     display: flex !important;
     flex-direction: column !important;
+    justify-content: space-between !important;
     box-sizing: border-box !important;
     font-size: 10pt !important;
     page-break-inside: avoid !important;
     break-inside: avoid !important;
+    page-break-after: avoid !important;
   }
 
   .rx-col-left {
@@ -384,27 +392,47 @@
   }
   .rx-main-body {
     flex: 1 1 auto !important;
+    min-height: 125mm !important;
     display: flex !important;
+    border-top: 1.5px solid #000 !important;
+    border-bottom: 1.5px solid #000 !important;
+    box-sizing: border-box !important;
   }
   .rx-treatment-area {
     flex: 1 1 auto !important;
     display: flex !important;
     flex-direction: column !important;
   }
+  .rx-treatment-content {
+    flex: 1 1 auto !important;
+    min-height: 40mm !important;
+  }
   .rx-signature-block {
     margin-top: auto !important;
+    padding-bottom: 1.5mm !important;
   }
   .rx-footer-box {
     flex-shrink: 0 !important;
     width: 100% !important;
     box-sizing: border-box !important;
     border: 1.5px solid #000 !important;
+    margin-top: 2mm !important;
+    margin-bottom: 1mm !important;
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
+    background: #FFFFFF !important;
   }
-  .rx-consent-box {
-    flex-shrink: 0 !important;
+  .rx-consent-item {
+    border-bottom: 1px solid #000 !important;
+    padding: 1mm 2mm !important;
+    font-size: 8.5pt !important;
   }
   .rx-footer-strip {
     flex-shrink: 0 !important;
+    border-top: 1px solid #000 !important;
+    border-bottom: none !important;
+    padding: 1.2mm 2mm !important;
+    background: #F8FAFC !important;
   }
 
   /* When modal-receipt-preview is open for print */
