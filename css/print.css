@@ -307,7 +307,7 @@
 @media print {
   @page {
     size: A4 portrait;
-    margin: 8mm 10mm 8mm 10mm;
+    margin: 8mm 10mm 6mm 10mm;
   }
 
   html, body {
@@ -316,8 +316,8 @@
     padding: 0 !important;
     margin: 0 !important;
     width: 100% !important;
-    height: auto !important;
-    overflow: visible !important;
+    height: 100% !important;
+    overflow: hidden !important;
   }
 
   /* Hide standard UI elements during print */
@@ -338,13 +338,14 @@
   #modal-rx-preview.open {
     display: block !important;
     position: static !important;
-    background: transparent !important;
+    background: #FFFFFF !important;
     padding: 0 !important;
     margin: 0 !important;
     width: 100% !important;
+    height: 100% !important;
     box-shadow: none !important;
     border: none !important;
-    overflow: visible !important;
+    overflow: hidden !important;
   }
 
   #modal-rx-preview.open .modal-card,
@@ -353,23 +354,27 @@
     box-shadow: none !important;
     border: none !important;
     max-width: 100% !important;
+    width: 100% !important;
+    height: 100% !important;
+    min-height: 100% !important;
     max-height: none !important;
     padding: 0 !important;
     margin: 0 !important;
-    background: transparent !important;
-    width: 100% !important;
-    overflow: visible !important;
-    display: block !important;
+    background: #FFFFFF !important;
+    overflow: hidden !important;
+    display: flex !important;
+    flex-direction: column !important;
   }
 
+  /* Exact A4 Printable Page Container */
   #rx-a4-page {
     box-shadow: none !important;
     width: 100% !important;
-    height: auto !important;
-    min-height: 0 !important;
-    max-height: 278mm !important;
+    height: 283mm !important;
+    min-height: 283mm !important;
+    max-height: 283mm !important;
     padding: 0 !important;
-    margin: 0 auto !important;
+    margin: 0 !important;
     display: flex !important;
     flex-direction: column !important;
     justify-content: space-between !important;
@@ -378,61 +383,105 @@
     page-break-inside: avoid !important;
     break-inside: avoid !important;
     page-break-after: avoid !important;
+    overflow: hidden !important;
   }
 
-  .rx-col-left {
-    flex: 0 0 48% !important;
-    display: flex !important;
-    flex-direction: column !important;
+  .rx-header-img {
+    width: 100% !important;
+    max-height: 38mm !important;
+    object-fit: contain !important;
+    margin-bottom: 1.5mm !important;
+    flex-shrink: 0 !important;
   }
-  .rx-col-right {
-    flex: 1 1 auto !important;
-    display: flex !important;
-    flex-direction: column !important;
+
+  .rx-vco-row {
+    flex-shrink: 0 !important;
+    margin-bottom: 1mm !important;
   }
+
+  .rx-patient-table {
+    flex-shrink: 0 !important;
+    margin-bottom: 1.5mm !important;
+    width: 100% !important;
+  }
+
+  /* 2-Column Body Expands to Fill Entire A4 Middle */
   .rx-main-body {
     flex: 1 1 auto !important;
-    min-height: 125mm !important;
+    min-height: 0 !important;
     display: flex !important;
     border-top: 1.5px solid #000 !important;
     border-bottom: 1.5px solid #000 !important;
     box-sizing: border-box !important;
   }
-  .rx-treatment-area {
+
+  .rx-col-left {
+    flex: 0 0 47% !important;
+    display: flex !important;
+    flex-direction: column !important;
+    border-right: 1.5px solid #000 !important;
+    padding: 2mm 3mm !important;
+  }
+
+  .rx-col-right {
     flex: 1 1 auto !important;
     display: flex !important;
     flex-direction: column !important;
   }
+
+  .rx-vitals-strip {
+    flex-shrink: 0 !important;
+  }
+
+  .rx-diag-box {
+    flex-shrink: 0 !important;
+  }
+
+  .rx-treatment-area {
+    flex: 1 1 auto !important;
+    display: flex !important;
+    flex-direction: column !important;
+    min-height: 0 !important;
+    padding: 2mm 3mm !important;
+  }
+
   .rx-treatment-content {
     flex: 1 1 auto !important;
-    min-height: 40mm !important;
+    min-height: 0 !important;
   }
+
   .rx-signature-block {
     margin-top: auto !important;
     padding-bottom: 1.5mm !important;
+    flex-shrink: 0 !important;
   }
+
+  /* Footer Box Anchored Firmly at the Bottom Edge of A4 */
   .rx-footer-box {
     flex-shrink: 0 !important;
     width: 100% !important;
     box-sizing: border-box !important;
     border: 1.5px solid #000 !important;
     margin-top: 2mm !important;
-    margin-bottom: 1mm !important;
+    margin-bottom: 0 !important;
     page-break-inside: avoid !important;
     break-inside: avoid !important;
     background: #FFFFFF !important;
   }
+
   .rx-consent-item {
     border-bottom: 1px solid #000 !important;
-    padding: 1mm 2mm !important;
+    padding: 1mm 2.5mm !important;
     font-size: 8.5pt !important;
+    line-height: 1.5 !important;
   }
+
   .rx-footer-strip {
     flex-shrink: 0 !important;
     border-top: 1px solid #000 !important;
     border-bottom: none !important;
-    padding: 1.2mm 2mm !important;
-    background: #F8FAFC !important;
+    padding: 1.2mm 2.5mm !important;
+    background: #FFFFFF !important;
   }
 
   /* When modal-receipt-preview is open for print */
