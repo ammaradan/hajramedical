@@ -81,12 +81,21 @@ function handleRequest(e) {
       }
     }
 
-    var action = payload.action || (e && e.parameter ? e.parameter.action : 'status');
+    var action = (payload && payload.action) || (e && e.parameter && e.parameter.action) || 'status';
 
-    if (action === 'status') {
+    var spreadsheetUrl = '';
+    try {
+      var activeSs = SpreadsheetApp.getActiveSpreadsheet();
+      if (activeSs) {
+        spreadsheetUrl = activeSs.getUrl();
+      }
+    } catch (eSs) {}
+
+    if (action === 'status' || action === 'getSpreadsheetUrl') {
       return jsonResponse({
         success: true,
         message: 'Hajra Medical Complex Sync Service is Active',
+        spreadsheetUrl: spreadsheetUrl,
         headings: HEADINGS,
         timestamp: new Date().toISOString()
       });
@@ -96,28 +105,30 @@ function handleRequest(e) {
       var ss = SpreadsheetApp.getActiveSpreadsheet();
       var incoming = payload.data || {};
 
+      // Intelligent two-way merge so mobile & PC never overwrite each other
+      var existing = readFullState(ss, null);
+      var merged = mergeDatabaseStates(existing, incoming);
+
       // 1. Sync the primary user-requested sheet: "Patient Records"
-      syncPatientRecordsSheet(ss, incoming.visits || []);
+      syncPatientRecordsSheet(ss, merged.visits || []);
 
       // 2. Also sync Payments, Appointments, and full DB snapshot for 100% lossless multi-device sync
-      if (incoming.payments && incoming.payments.length > 0) {
-        syncPaymentsSheet(ss, incoming.payments);
+      if (merged.payments && merged.payments.length > 0) {
+        syncPaymentsSheet(ss, merged.payments);
       }
 
-      if (incoming.appointments && incoming.appointments.length > 0) {
-        syncAppointmentsSheet(ss, incoming.appointments);
+      if (merged.appointments && merged.appointments.length > 0) {
+        syncAppointmentsSheet(ss, merged.appointments);
       }
 
       // Store complete JSON state in a backup tab so mobile/PC sync never loses rich data
-      storeFullState(ss, incoming);
-
-      // Read back all merged data
-      var allData = readFullState(ss, incoming);
+      storeFullState(ss, merged);
 
       return jsonResponse({
         success: true,
         message: 'All records synchronized successfully with custom headings',
-        data: allData,
+        spreadsheetUrl: spreadsheetUrl,
+        data: merged,
         timestamp: new Date().toISOString()
       });
     }
@@ -399,6 +410,93 @@ function readFullState(ss, fallback) {
   } catch (err) {
     return fallback;
   }
+}
+
+/**
+ * Merges existing Google Sheet database with incoming device database
+ * Prevents loss of data when multiple devices (PC & phones) save offline/online
+ */
+function mergeDatabaseStates(existing, incoming) {
+  if (!existing || !existing.visits) return incoming || {};
+  if (!incoming || !incoming.visits) return existing || {};
+
+  return {
+    patients: mergeListByKey(existing.patients, incoming.patients, 'mrNumber'),
+    visits: mergeVisitsList(existing.visits, incoming.visits),
+    payments: mergeListByKey(existing.payments, incoming.payments, 'id'),
+    appointments: mergeListByKey(existing.appointments, incoming.appointments, 'id'),
+    templates: mergeListByKey(existing.templates, incoming.templates, 'id')
+  };
+}
+
+function mergeListByKey(listA, listB, keyField) {
+  var map = {};
+  var a = listA || [];
+  for (var i = 0; i < a.length; i++) {
+    var itemA = a[i];
+    var kA = itemA && itemA[keyField] ? String(itemA[keyField]) : ('a_' + i);
+    map[kA] = itemA;
+  }
+  var b = listB || [];
+  for (var j = 0; j < b.length; j++) {
+    var itemB = b[j];
+    var kB = itemB && itemB[keyField] ? String(itemB[keyField]) : ('b_' + j);
+    if (!map[kB]) {
+      map[kB] = itemB;
+    } else {
+      // Merge properties, preferring non-empty values
+      var mergedItem = {};
+      for (var prop in map[kB]) { mergedItem[prop] = map[kB][prop]; }
+      for (var prop2 in itemB) {
+        if (itemB[prop2] !== undefined && itemB[prop2] !== null && itemB[prop2] !== '') {
+          mergedItem[prop2] = itemB[prop2];
+        }
+      }
+      map[kB] = mergedItem;
+    }
+  }
+  var res = [];
+  for (var key in map) {
+    if (map.hasOwnProperty(key)) res.push(map[key]);
+  }
+  return res;
+}
+
+function mergeVisitsList(listA, listB) {
+  var map = {};
+  var a = listA || [];
+  for (var i = 0; i < a.length; i++) {
+    var vA = a[i];
+    var kA = (vA.mrNumber || '') + '_' + (vA.date || '') + '_' + (vA.visitNo || '1');
+    map[kA] = vA;
+  }
+  var b = listB || [];
+  for (var j = 0; j < b.length; j++) {
+    var vB = b[j];
+    var kB = (vB.mrNumber || '') + '_' + (vB.date || '') + '_' + (vB.visitNo || '1');
+    if (!map[kB]) {
+      map[kB] = vB;
+    } else {
+      var mergedV = {};
+      for (var p1 in map[kB]) { mergedV[p1] = map[kB][p1]; }
+      for (var p2 in vB) {
+        if (vB[p2] !== undefined && vB[p2] !== null && vB[p2] !== '') {
+          mergedV[p2] = vB[p2];
+        }
+      }
+      map[kB] = mergedV;
+    }
+  }
+  var res = [];
+  for (var key in map) {
+    if (map.hasOwnProperty(key)) res.push(map[key]);
+  }
+  res.sort(function(x, y) {
+    var diff = (x.serialNo || 0) - (y.serialNo || 0);
+    if (diff !== 0) return diff;
+    return String(x.mrNumber || '').localeCompare(String(y.mrNumber || ''));
+  });
+  return res;
 }
 
 function getOrCreateSheet(ss, name, headers, headerColor) {

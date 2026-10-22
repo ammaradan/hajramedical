@@ -60,10 +60,8 @@ document.addEventListener('DOMContentLoaded', async () => {
     await refreshSidebarStats();
     await refreshRecentPatientsList();
 
-    // Auto-sync in background on startup to pull fresh data across devices
-    setTimeout(() => {
-      triggerBackgroundAutoSync();
-    }, 1200);
+    // Initialize Auto-Sync, Offline Listeners & Service Worker hooks
+    initAutoSyncAndOfflineSystem();
   } catch (err) {
     console.error('Initialization error:', err);
     showToast('Failed to initialize database: ' + err.message, 'error');
@@ -223,6 +221,10 @@ function populateForm(data) {
   _currentMode = 'edit';
   const histBtn = document.getElementById('btn-view-history');
   if (histBtn) histBtn.style.display = 'inline-flex';
+
+  if (typeof switchMobileView === 'function') {
+    switchMobileView('form');
+  }
 }
 
 async function handleSavePatient() {
@@ -250,7 +252,7 @@ async function handleSavePatient() {
 
     await refreshSidebarStats();
     await refreshRecentPatientsList();
-    triggerBackgroundAutoSync();
+    scheduleCloudSync(800);
   } catch (err) {
     showToast('Error saving record: ' + err.message, 'error');
   }
@@ -266,7 +268,7 @@ async function handleUpdatePatient() {
     showToast('Record updated successfully.', 'success');
     await refreshSidebarStats();
     await refreshRecentPatientsList();
-    triggerBackgroundAutoSync();
+    scheduleCloudSync(800);
   } catch (err) {
     showToast('Error updating record: ' + err.message, 'error');
   }
@@ -314,7 +316,7 @@ async function handleSaveNewVisit() {
     showToast(`Saved as New Visit #${nextVisitNo} for ${data.name}! Total visits: ${_currentPatientVisits.length}`, 'success');
     await refreshSidebarStats();
     await refreshRecentPatientsList();
-    triggerBackgroundAutoSync();
+    scheduleCloudSync(800);
   } catch (err) {
     showToast('Error saving new visit: ' + err.message, 'error');
   }
@@ -1494,10 +1496,22 @@ function lockSystemNow() {
 
 // ── SETTINGS & CLOUD SYNC ─────────────────────────────────────────────
 const DEFAULT_CLOUD_SYNC_URL = 'https://script.google.com/macros/s/AKfycbzTyJjQRhvDtPOCJXkDj-BiUsO3d8Ou82xwH-p99hVDO87-dDkYzjOu5dKCgRcEP24L/exec';
+const DEFAULT_GOOGLE_SHEET_URL = 'https://docs.google.com/spreadsheets/d/15f_hzFNS-cQg9OO8n4mmjYEnR7lz3p82MlLkpN3IOeo/edit';
+
+let _syncDebounceTimer = null;
+let _periodicSyncInterval = null;
 
 function getCloudSyncUrl() {
   const custom = (localStorage.getItem('hmc_cloud_sync_url') || '').trim();
-  return custom || DEFAULT_CLOUD_SYNC_URL;
+  if (custom && custom.startsWith('https://script.google.com/macros/s/') && custom.endsWith('/exec')) {
+    return custom;
+  }
+  return DEFAULT_CLOUD_SYNC_URL;
+}
+
+function openGoogleSheetDirectly() {
+  const url = localStorage.getItem('hmc_google_sheet_url') || DEFAULT_GOOGLE_SHEET_URL;
+  window.open(url, '_blank');
 }
 
 function openSettingsModal() {
@@ -1564,14 +1578,6 @@ function saveCloudSyncConfig() {
   showToast('Cloud Sync settings saved successfully!', 'success');
 }
 
-function getCloudSyncUrl() {
-  const custom = (localStorage.getItem('hmc_cloud_sync_url') || '').trim();
-  if (custom && custom.startsWith('https://script.google.com/macros/s/') && custom.endsWith('/exec')) {
-    return custom;
-  }
-  return DEFAULT_CLOUD_SYNC_URL;
-}
-
 async function testCloudSyncConnection() {
   const urlInp = document.getElementById('set-cloud-url');
   const url = (urlInp ? urlInp.value : '').trim() || getCloudSyncUrl();
@@ -1597,6 +1603,9 @@ async function testCloudSyncConnection() {
     });
     const data = await res.json();
     if (data && data.success) {
+      if (data.spreadsheetUrl) {
+        localStorage.setItem('hmc_google_sheet_url', data.spreadsheetUrl);
+      }
       showToast('✅ Connected! Google Apps Script is Active & Ready.', 'success', 5000);
     } else {
       showToast('⚠️ Script reached but returned: ' + (data.message || 'Error'), 'info');
@@ -1611,6 +1620,13 @@ async function testCloudSyncConnection() {
 async function handleCloudSyncClick(silent = false) {
   const cloudUrl = getCloudSyncUrl();
   const btn = document.getElementById('btn-header-sync');
+
+  if (!navigator.onLine) {
+    if (!silent) {
+      showToast('📶 You are currently offline. All data is saved safely in local storage and will sync automatically once internet reconnects.', 'info', 5000);
+    }
+    return;
+  }
 
   if (window.location.protocol === 'file:') {
     if (!silent) {
@@ -1657,13 +1673,18 @@ async function handleCloudSyncClick(silent = false) {
     }
 
     if (result && result.success) {
+      if (result.spreadsheetUrl) {
+        localStorage.setItem('hmc_google_sheet_url', result.spreadsheetUrl);
+      }
+      localStorage.setItem('hmc_last_sync_time', Date.now().toString());
+
       if (result.data) {
         await HMC_DB.importFullDatabase({ data: result.data });
         await refreshSidebarStats();
         await refreshRecentPatientsList();
       }
       if (!silent) {
-        showToast('☁ Synchronized with Cloud successfully!', 'success');
+        showToast('☁ Synchronized with Cloud & Google Sheets successfully!', 'success');
       }
       if (btn) {
         btn.classList.remove('syncing');
@@ -1690,10 +1711,103 @@ async function handleCloudSyncClick(silent = false) {
 }
 
 function triggerBackgroundAutoSync() {
+  scheduleCloudSync(800);
+}
+
+function scheduleCloudSync(delayMs = 1200) {
+  if (!navigator.onLine) return;
   const auto = localStorage.getItem('hmc_auto_sync') !== 'false';
-  const url = getCloudSyncUrl();
-  if (auto && url) {
+  if (!auto) return;
+
+  if (_syncDebounceTimer) clearTimeout(_syncDebounceTimer);
+  _syncDebounceTimer = setTimeout(() => {
     handleCloudSyncClick(true);
+  }, delayMs);
+}
+
+function initAutoSyncAndOfflineSystem() {
+  // 1. Initial background sync on startup (1.2 sec delay)
+  setTimeout(() => {
+    if (navigator.onLine) {
+      handleCloudSyncClick(true);
+    }
+  }, 1200);
+
+  // 2. Periodic background sync every 90 seconds
+  if (_periodicSyncInterval) clearInterval(_periodicSyncInterval);
+  _periodicSyncInterval = setInterval(() => {
+    if (navigator.onLine && localStorage.getItem('hmc_auto_sync') !== 'false') {
+      handleCloudSyncClick(true);
+    }
+  }, 90000);
+
+  // 3. Tab visibility / device unlock sync
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible' && navigator.onLine) {
+      const lastSync = parseInt(localStorage.getItem('hmc_last_sync_time') || '0', 10);
+      if (Date.now() - lastSync > 45000) {
+        handleCloudSyncClick(true);
+      }
+    }
+  });
+
+  window.addEventListener('focus', () => {
+    if (navigator.onLine) {
+      const lastSync = parseInt(localStorage.getItem('hmc_last_sync_time') || '0', 10);
+      if (Date.now() - lastSync > 45000) {
+        handleCloudSyncClick(true);
+      }
+    }
+  });
+
+  // 4. Online & Offline detection
+  window.addEventListener('online', () => {
+    updateNetworkStatusBadge(true);
+    showToast('🌐 Internet connection restored! Synchronizing your records...', 'success', 4000);
+    handleCloudSyncClick(true);
+  });
+
+  window.addEventListener('offline', () => {
+    updateNetworkStatusBadge(false);
+    showToast('📶 Working Offline. All patient records are safely stored on this device.', 'info', 4500);
+  });
+
+  updateNetworkStatusBadge(navigator.onLine);
+}
+
+function updateNetworkStatusBadge(isOnline) {
+  const badge = document.getElementById('header-net-badge');
+  if (!badge) return;
+  if (isOnline) {
+    badge.className = 'net-badge online';
+    badge.title = 'Network: Online & Cloud Sync Active';
+    badge.innerHTML = '<span class="net-dot">●</span> <span class="net-text">Online</span>';
+  } else {
+    badge.className = 'net-badge offline';
+    badge.title = 'Network: Offline (All records safely stored locally)';
+    badge.innerHTML = '<span class="net-dot">●</span> <span class="net-text">Offline</span>';
+  }
+}
+
+// ── MOBILE VIEW SWITCHER ────────────────────────────────────────────
+function switchMobileView(view) {
+  const sidebar = document.getElementById('app-sidebar');
+  const workspace = document.querySelector('.workspace');
+  const btnForm = document.getElementById('mpill-form');
+  const btnSearch = document.getElementById('mpill-search');
+
+  if (view === 'search') {
+    if (sidebar) sidebar.classList.add('mobile-visible');
+    if (workspace) workspace.classList.add('mobile-hidden');
+    if (btnSearch) btnSearch.classList.add('active');
+    if (btnForm) btnForm.classList.remove('active');
+    const searchInp = document.getElementById('sidebar-search-input');
+    if (searchInp) setTimeout(() => searchInp.focus(), 150);
+  } else {
+    if (sidebar) sidebar.classList.remove('mobile-visible');
+    if (workspace) workspace.classList.remove('mobile-hidden');
+    if (btnForm) btnForm.classList.add('active');
+    if (btnSearch) btnSearch.classList.remove('active');
   }
 }
 
