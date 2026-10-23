@@ -511,9 +511,56 @@
     background: transparent !important;
   }
 
+  /* When modal-ipd-print is open for print */
+  #modal-ipd-print.open {
+    display: block !important;
+    position: static !important;
+    background: #FFFFFF !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    box-shadow: none !important;
+    border: none !important;
+    width: 100% !important;
+    height: auto !important;
+  }
+
+  #modal-ipd-print.open .modal-card {
+    box-shadow: none !important;
+    border: none !important;
+    max-width: 100% !important;
+    width: 100% !important;
+    height: auto !important;
+    min-height: auto !important;
+    max-height: none !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    background: #FFFFFF !important;
+    overflow: visible !important;
+  }
+
+  #modal-ipd-print.open .modal-body {
+    padding: 0 !important;
+    margin: 0 !important;
+    background: #FFFFFF !important;
+    display: block !important;
+    overflow: visible !important;
+    max-height: none !important;
+  }
+
+  #modal-ipd-print.open .ipd-print-doc {
+    box-shadow: none !important;
+    width: 100% !important;
+    min-height: auto !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
+  }
+
   /* Ensure crisp colors and backgrounds */
   * {
     -webkit-print-color-adjust: exact !important;
     print-color-adjust: exact !important;
   }
 }
+

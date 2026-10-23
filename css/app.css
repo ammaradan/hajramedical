@@ -1608,6 +1608,491 @@ body {
   }
 }
 
+/* ── MAIN MODE SWITCHER (OPD vs IPD) ────────────────────────── */
+.main-mode-switcher {
+  display: flex;
+  align-items: center;
+  background: rgba(13, 31, 56, 0.45);
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  border-radius: 30px;
+  padding: 3px 4px;
+  gap: 4px;
+  backdrop-filter: blur(8px);
+}
+
+.mode-tab-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 6px 14px;
+  border-radius: 24px;
+  border: none;
+  background: transparent;
+  color: rgba(255, 255, 255, 0.85);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  white-space: nowrap;
+}
+
+.mode-tab-btn:hover {
+  color: #fff;
+  background: rgba(255, 255, 255, 0.12);
+}
+
+.mode-tab-btn.active {
+  background: #ffffff;
+  color: var(--navy);
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
+  font-weight: 700;
+}
+
+.ipd-badge-counter {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 19px;
+  height: 19px;
+  padding: 0 5px;
+  border-radius: 10px;
+  font-size: 11px;
+  font-weight: 800;
+  background: #EF4444;
+  color: #ffffff;
+  margin-left: 2px;
+}
+
+.mode-tab-btn.active .ipd-badge-counter {
+  background: #DC2626;
+  color: #fff;
+}
+
+/* ── IPD CONTAINER & WORKSPACE ───────────────────────────────── */
+#ipd-container {
+  padding: 20px 24px 80px 24px;
+  max-width: 1350px;
+  margin: 0 auto;
+}
+
+.ipd-top-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: linear-gradient(135deg, #0d2b45 0%, #174266 100%);
+  color: #ffffff;
+  border-radius: var(--radius-lg);
+  padding: 16px 22px;
+  margin-bottom: 18px;
+  box-shadow: 0 6px 20px rgba(13, 43, 69, 0.15);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.ipd-banner-left {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.ipd-banner-icon {
+  font-size: 28px;
+  background: rgba(255, 255, 255, 0.12);
+  width: 50px;
+  height: 50px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-md);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.ipd-banner-titles h2 {
+  font-size: 17px;
+  font-weight: 700;
+  letter-spacing: 0.3px;
+  margin-bottom: 2px;
+}
+
+.ipd-banner-titles p {
+  font-size: 12px;
+  opacity: 0.85;
+}
+
+.ipd-banner-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 14px;
+  background: rgba(16, 185, 129, 0.2);
+  border: 1px solid rgba(16, 185, 129, 0.4);
+  color: #34D399;
+  border-radius: 20px;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+/* IPD Sub-Nav Bar */
+.ipd-subnav {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: #ffffff;
+  padding: 8px 10px;
+  border-radius: var(--radius-md);
+  border: 1.5px solid var(--border);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+  margin-bottom: 18px;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.ipd-subnav::-webkit-scrollbar {
+  height: 4px;
+}
+.ipd-subnav::-webkit-scrollbar-thumb {
+  background: var(--border-dark);
+  border-radius: 4px;
+}
+
+.ipd-tab-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 9px 15px;
+  border-radius: var(--radius-sm);
+  border: 1px solid transparent;
+  background: #f8fafc;
+  color: var(--text-muted);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all 0.18s ease;
+}
+
+.ipd-tab-btn:hover {
+  background: #f1f5f9;
+  color: var(--navy);
+}
+
+.ipd-tab-btn.active {
+  background: var(--navy);
+  color: #ffffff;
+  font-weight: 700;
+  box-shadow: 0 2px 8px rgba(13, 43, 69, 0.25);
+  border-color: var(--navy);
+}
+
+/* IPD Panes */
+.ipd-pane {
+  display: none;
+  animation: fadeIn 0.2s ease forwards;
+}
+
+.ipd-pane.active {
+  display: block;
+}
+
+.ipd-card-header-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 16px;
+  padding-bottom: 12px;
+  border-bottom: 1.5px solid var(--border);
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.ipd-card-header-bar .panel-title {
+  margin-bottom: 0;
+}
+
+.ipd-tab-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+/* Billing & Stay Summary Cards */
+.ipd-bill-calc-grid {
+  display: grid;
+  grid-template-columns: 2fr 1fr;
+  gap: 20px;
+  margin-top: 14px;
+}
+
+@media (max-width: 900px) {
+  .ipd-bill-calc-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.ipd-bill-total-box {
+  background: linear-gradient(135deg, #f8fafc 0%, #edf2f7 100%);
+  border: 1.5px solid var(--border-dark);
+  border-radius: var(--radius-md);
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.ipd-bill-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 13.5px;
+  color: var(--text-main);
+  padding: 4px 0;
+  border-bottom: 1px dashed var(--border);
+}
+
+.ipd-bill-row.grand-total {
+  border-top: 2px solid var(--navy);
+  border-bottom: none;
+  padding-top: 10px;
+  font-size: 16px;
+  font-weight: 800;
+  color: var(--navy);
+}
+
+/* IPD Records Table */
+.ipd-records-table-wrap {
+  overflow-x: auto;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: #ffffff;
+}
+
+.ipd-records-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+  text-align: left;
+}
+
+.ipd-records-table th {
+  background: #f1f5f9;
+  color: var(--navy);
+  font-weight: 700;
+  padding: 11px 14px;
+  border-bottom: 2px solid var(--border);
+  white-space: nowrap;
+}
+
+.ipd-records-table td {
+  padding: 11px 14px;
+  border-bottom: 1px solid var(--border);
+  color: var(--text-main);
+  vertical-align: middle;
+}
+
+.ipd-records-table tr:hover td {
+  background: #f8fafc;
+}
+
+/* Status Badges */
+.ipd-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 8px;
+  border-radius: 12px;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+}
+
+.ipd-badge-active {
+  background: #DEF7EC;
+  color: #03543F;
+  border: 1px solid #BCF0DA;
+}
+
+.ipd-badge-discharged {
+  background: #E1EFFE;
+  color: #1E429F;
+  border: 1px solid #C3DDFD;
+}
+
+.ipd-badge-surgery {
+  background: #FDF2F8;
+  color: #9D174D;
+  border: 1px solid #FCE7F3;
+}
+
+/* Action Buttons inside records table */
+.ipd-btn-action {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 5px 9px;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  background: #ffffff;
+  color: var(--text-main);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  gap: 4px;
+}
+
+.ipd-btn-action:hover {
+  background: #f1f5f9;
+  border-color: var(--navy-light);
+  color: var(--navy);
+}
+
+.ipd-btn-action.btn-del:hover {
+  background: #FEE2E2;
+  border-color: #EF4444;
+  color: #DC2626;
+}
+
+/* Printable Document Styles inside Preview Modal */
+#modal-ipd-print .modal-card {
+  max-width: 920px;
+  width: 94vw;
+  background: #525659;
+  padding: 0;
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+#modal-ipd-print .modal-header {
+  background: var(--navy);
+  color: #ffffff;
+  padding: 12px 20px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+#modal-ipd-print .modal-header h2 {
+  color: #ffffff;
+  font-size: 15px;
+}
+
+#modal-ipd-print .modal-body {
+  padding: 24px;
+  background: #525659;
+  max-height: 85vh;
+  overflow-y: auto;
+  display: flex;
+  justify-content: center;
+}
+
+.ipd-print-doc {
+  background: #ffffff;
+  width: 210mm;
+  min-height: 297mm;
+  padding: 8mm 12mm 12mm 12mm;
+  box-sizing: border-box;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.35);
+  font-family: "Calibri", "Segoe UI", Arial, sans-serif;
+  color: #111827;
+  display: flex;
+  flex-direction: column;
+}
+
+.ipd-doc-title-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-top: 2px solid #0d2b45;
+  border-bottom: 2px solid #0d2b45;
+  padding: 6px 12px;
+  margin: 6px 0 12px 0;
+  background: #f8fafc;
+}
+
+.ipd-doc-title-bar h3 {
+  font-size: 14pt;
+  font-weight: 800;
+  color: #0d2b45;
+  margin: 0;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+}
+
+.ipd-doc-title-bar span {
+  font-size: 9.5pt;
+  font-weight: 700;
+  color: #4b5563;
+}
+
+.ipd-meta-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 9.5pt;
+  margin-bottom: 12px;
+}
+
+.ipd-meta-table td {
+  padding: 4px 6px;
+  border: 1px solid #d1d5db;
+  vertical-align: top;
+}
+
+.ipd-meta-table .lbl {
+  font-weight: 700;
+  background: #f9fafb;
+  width: 18%;
+  color: #374151;
+}
+
+.ipd-consent-urdu-box {
+  direction: rtl;
+  text-align: right;
+  font-family: var(--font-urdu), "Noto Nastaliq Urdu", "Jameel Noori Nastaleeq", serif;
+  font-size: 11pt;
+  line-height: 2;
+  border: 1.5px solid #0d2b45;
+  border-radius: 6px;
+  padding: 12px 16px;
+  background: #fdfefe;
+  margin-bottom: 14px;
+}
+
+.ipd-consent-eng-box {
+  font-size: 9.5pt;
+  line-height: 1.5;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  padding: 10px 14px;
+  background: #f9fafb;
+  margin-bottom: 14px;
+}
+
+.ipd-signature-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 20px;
+  margin-top: auto;
+  padding-top: 24px;
+}
+
+.ipd-sig-box {
+  border-top: 1.5px solid #1f2937;
+  padding-top: 6px;
+  text-align: center;
+  font-size: 9.5pt;
+  font-weight: 700;
+  color: #1f2937;
+}
+
+.ipd-sig-box span {
+  display: block;
+  font-size: 8pt;
+  font-weight: 400;
+  color: #6b7280;
+  margin-top: 2px;
+}
+
 /* Mobile Navigation Bar */
 .mobile-nav-pills {
   display: none;
@@ -2024,6 +2509,66 @@ body {
     overflow: auto !important;
     -webkit-overflow-scrolling: touch !important;
   }
+
+  /* 9. IPD Suite Mobile Overrides */
+  .main-mode-switcher {
+    display: none !important;
+  }
+
+  #ipd-container {
+    padding: 10px 10px 110px 10px !important;
+  }
+
+  .ipd-top-banner {
+    padding: 12px 14px !important;
+  }
+
+  .ipd-subnav {
+    padding: 6px !important;
+    gap: 4px !important;
+    margin-bottom: 12px !important;
+  }
+
+  .ipd-tab-btn {
+    font-size: 11.5px !important;
+    padding: 7px 11px !important;
+    border-radius: 6px !important;
+  }
+
+  .ipd-records-table th, 
+  .ipd-records-table td {
+    padding: 8px 10px !important;
+    font-size: 12px !important;
+  }
+
+  #modal-ipd-print .modal-card {
+    width: 100vw !important;
+    max-width: 100vw !important;
+    height: 100vh !important;
+    max-height: 100vh !important;
+    margin: 0 !important;
+    border-radius: 0 !important;
+    padding: 0 !important;
+  }
+
+  #modal-ipd-print .modal-body {
+    display: block !important;
+    padding: 10px 6px !important;
+    overflow: auto !important;
+    -webkit-overflow-scrolling: touch !important;
+  }
+
+  .ipd-print-doc {
+    width: 100% !important;
+    min-height: auto !important;
+    padding: 6mm !important;
+    box-shadow: none !important;
+  }
+
+  .ipd-signature-grid {
+    grid-template-columns: 1fr !important;
+    gap: 16px !important;
+  }
 }
 
 @media (max-width: 480px) {
@@ -2031,4 +2576,5 @@ body {
     font-size: 12.5px !important;
   }
 }
+
 

@@ -5,7 +5,7 @@
  */
 
 const DB_NAME = 'HajraMedicalDB';
-let DB_VERSION = 3;
+let DB_VERSION = 4;
 
 let _dbInstance = null;
 
@@ -82,6 +82,15 @@ function initDB(versionToUse) {
       if (!db.objectStoreNames.contains('templates')) {
         const tplStore = db.createObjectStore('templates', { keyPath: 'id' });
         tplStore.createIndex('cat', 'cat', { unique: false });
+      }
+
+      // Admissions store (IPD / Inpatient / Ward / OT Surgery / Discharge)
+      if (!db.objectStoreNames.contains('admissions')) {
+        const admStore = db.createObjectStore('admissions', { keyPath: 'admissionId' });
+        admStore.createIndex('mrNumber', 'mrNumber', { unique: false });
+        admStore.createIndex('admissionDate', 'admissionDate', { unique: false });
+        admStore.createIndex('status', 'status', { unique: false });
+        admStore.createIndex('ward', 'ward', { unique: false });
       }
     };
 
@@ -824,7 +833,7 @@ async function deleteTemplate(tplId) {
 
 async function exportFullDatabase() {
   const db = await initDB();
-  const stores = ['patients', 'visits', 'payments', 'appointments', 'templates'];
+  const stores = ['patients', 'visits', 'payments', 'appointments', 'templates', 'admissions'];
   const exportData = {
     clinic: 'Hajra Medical Complex Jaranwala',
     exportedAt: new Date().toISOString(),
@@ -861,7 +870,7 @@ async function importFullDatabase(importData) {
   }
 
   const db = await initDB();
-  const stores = ['patients', 'visits', 'payments', 'appointments', 'templates'];
+  const stores = ['patients', 'visits', 'payments', 'appointments', 'templates', 'admissions'];
 
   return new Promise((resolve, reject) => {
     const tx = db.transaction(stores, 'readwrite');
@@ -964,6 +973,122 @@ async function exportPatientsToCSV() {
   });
 }
 
+// ── ADMISSION & INPATIENT METHODS (IPD) ──────────────────────────────
+async function getNextAdmissionId() {
+  const db = await initDB();
+  return new Promise((resolve) => {
+    const tx = db.transaction(['admissions'], 'readonly');
+    const store = tx.objectStore('admissions');
+    const req = store.getAllKeys();
+    req.onsuccess = () => {
+      const keys = req.result || [];
+      const currentYear = new Date().getFullYear();
+      let maxNum = 0;
+      keys.forEach(k => {
+        const match = String(k).match(/ADM-(\d+)-(\d+)/);
+        if (match && parseInt(match[1], 10) === currentYear) {
+          const num = parseInt(match[2], 10);
+          if (num > maxNum) maxNum = num;
+        }
+      });
+      const nextNum = String(maxNum + 1).padStart(4, '0');
+      resolve(`ADM-${currentYear}-${nextNum}`);
+    };
+    req.onerror = () => {
+      const currentYear = new Date().getFullYear();
+      resolve(`ADM-${currentYear}-0001`);
+    };
+  });
+}
+
+async function saveAdmissionRecord(adm) {
+  const db = await initDB();
+  if (!adm.admissionId) {
+    adm.admissionId = await getNextAdmissionId();
+  }
+  if (!adm.createdAt) {
+    adm.createdAt = new Date().toISOString();
+  }
+  adm.updatedAt = new Date().toISOString();
+
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(['admissions'], 'readwrite');
+    const store = tx.objectStore('admissions');
+    const req = store.put(adm);
+    req.onsuccess = () => resolve(adm);
+    req.onerror = (e) => reject(e.target.error);
+  });
+}
+
+async function getAdmissionById(admissionId) {
+  const db = await initDB();
+  return new Promise((resolve) => {
+    const tx = db.transaction(['admissions'], 'readonly');
+    const store = tx.objectStore('admissions');
+    const req = store.get(admissionId);
+    req.onsuccess = () => resolve(req.result || null);
+    req.onerror = () => resolve(null);
+  });
+}
+
+async function getAdmissionsByMR(mrNumber) {
+  const db = await initDB();
+  return new Promise((resolve) => {
+    const tx = db.transaction(['admissions'], 'readonly');
+    const store = tx.objectStore('admissions');
+    const index = store.index('mrNumber');
+    const req = index.getAll(mrNumber);
+    req.onsuccess = () => {
+      const records = req.result || [];
+      records.sort((a, b) => (b.admissionDate || '').localeCompare(a.admissionDate || ''));
+      resolve(records);
+    };
+    req.onerror = () => resolve([]);
+  });
+}
+
+async function getActiveAdmissions() {
+  const db = await initDB();
+  return new Promise((resolve) => {
+    const tx = db.transaction(['admissions'], 'readonly');
+    const store = tx.objectStore('admissions');
+    const req = store.getAll();
+    req.onsuccess = () => {
+      const records = req.result || [];
+      const active = records.filter(r => r.status !== 'Discharged');
+      active.sort((a, b) => (b.admissionDate || '').localeCompare(a.admissionDate || ''));
+      resolve(active);
+    };
+    req.onerror = () => resolve([]);
+  });
+}
+
+async function getAllAdmissions() {
+  const db = await initDB();
+  return new Promise((resolve) => {
+    const tx = db.transaction(['admissions'], 'readonly');
+    const store = tx.objectStore('admissions');
+    const req = store.getAll();
+    req.onsuccess = () => {
+      const records = req.result || [];
+      records.sort((a, b) => (b.admissionDate || '').localeCompare(a.admissionDate || ''));
+      resolve(records);
+    };
+    req.onerror = () => resolve([]);
+  });
+}
+
+async function deleteAdmission(admissionId) {
+  const db = await initDB();
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(['admissions'], 'readwrite');
+    const store = tx.objectStore('admissions');
+    const req = store.delete(admissionId);
+    req.onsuccess = () => resolve(true);
+    req.onerror = (e) => reject(e.target.error);
+  });
+}
+
 window.HMC_DB = {
   initDB,
   getNextMRNumber,
@@ -991,5 +1116,13 @@ window.HMC_DB = {
   importFullDatabase,
   exportPatientsToCSV,
   getPSTDate,
-  getPSTTime
+  getPSTTime,
+  // IPD Admissions
+  getNextAdmissionId,
+  saveAdmissionRecord,
+  getAdmissionById,
+  getAdmissionsByMR,
+  getActiveAdmissions,
+  getAllAdmissions,
+  deleteAdmission
 };

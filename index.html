@@ -22,6 +22,19 @@
       </div>
     </div>
 
+    <!-- Main OPD / IPD Mode Switcher -->
+    <div class="main-mode-switcher no-print" id="main-mode-switcher">
+      <button type="button" class="mode-tab-btn active" id="btn-mode-opd" onclick="switchMainMode('opd')" title="Outpatient Prescription Workspace">
+        <span class="m-icon">🩺</span>
+        <span class="m-text">OPD Prescription</span>
+      </button>
+      <button type="button" class="mode-tab-btn" id="btn-mode-ipd" onclick="switchMainMode('ipd')" title="Inpatient Admissions, Surgery & Ward Suite">
+        <span class="m-icon">🏥</span>
+        <span class="m-text">IPD Admissions & Surgery</span>
+        <span class="ipd-count-badge" id="ipd-active-count-badge" style="display:none;">0</span>
+      </button>
+    </div>
+
     <div class="header-actions">
       <div class="header-clock" id="header-clock">
         <span>🕒</span>
@@ -44,6 +57,14 @@
         <div class="header-dropdown-menu" id="header-dropdown-menu">
           <div class="dropdown-header">Clinic Management</div>
           
+          <button type="button" class="dropdown-item" onclick="selectMenuItem(() => switchMainMode('ipd'))">
+            <span class="d-icon">🏥</span>
+            <div class="d-info">
+              <span class="d-title">IPD Admissions & Surgery</span>
+              <span class="d-desc">Ward admissions, OT notes, Consent, Discharge & Bills</span>
+            </div>
+          </button>
+
           <button type="button" class="dropdown-item" onclick="selectMenuItem(openAppointmentsModal)">
             <span class="d-icon">📅</span>
             <div class="d-info">
@@ -105,6 +126,9 @@
     </button>
     <button type="button" class="mobile-pill-btn" id="mpill-templates" onclick="toggleTemplatesPanel()">
       <span>⚡</span> Templates
+    </button>
+    <button type="button" class="mobile-pill-btn" id="mpill-ipd" onclick="switchMainMode('ipd')">
+      <span>🏥</span> IPD
     </button>
   </div>
 
@@ -432,6 +456,755 @@
       </button>
     </div>
   </footer>
+
+  <!-- ── IPD INPATIENT & SURGERY SUITE WORKSPACE ──────────────────── -->
+  <div class="ipd-container no-print" id="ipd-container" style="display:none;">
+
+    <!-- Top IPD Banner / Breadcrumb -->
+    <div class="ipd-top-banner">
+      <div class="ipd-banner-left">
+        <span class="ipd-banner-icon">🏥</span>
+        <div>
+          <h2>Inpatient Department (IPD) & Surgical Suite</h2>
+          <p>Hajra Medical Complex · Ward Admissions, OT Notes, Consents, Discharge & Hospital Billing</p>
+        </div>
+      </div>
+      <div class="ipd-banner-actions">
+        <button type="button" class="btn btn-save" onclick="resetIPDForm()" title="Create New Admission">
+          <span>➕</span> New Admission
+        </button>
+        <button type="button" class="btn btn-outline" onclick="switchIPDTab('records')" title="View Currently Admitted Patients">
+          <span>📋</span> Wards & Inpatients (<span id="ipd-stat-active-val">0</span>)
+        </button>
+        <button type="button" class="btn btn-primary" onclick="switchMainMode('opd')" title="Return to Outpatient Prescription Mode">
+          <span>🩺</span> OPD Prescriptions
+        </button>
+      </div>
+    </div>
+
+    <!-- IPD Sub-Navigation Tabs Bar -->
+    <nav class="ipd-subnav" id="ipd-subnav">
+      <button type="button" class="ipd-tab-btn active" id="ipd-nav-admission" onclick="switchIPDTab('admission')">
+        <span class="t-icon">➕</span>
+        <span>Admission & Ward</span>
+      </button>
+      <button type="button" class="ipd-tab-btn" id="ipd-nav-surgery" onclick="switchIPDTab('surgery')">
+        <span class="t-icon">🔪</span>
+        <span>Surgery & OT</span>
+      </button>
+      <button type="button" class="ipd-tab-btn" id="ipd-nav-consent" onclick="switchIPDTab('consent')">
+        <span class="t-icon">📝</span>
+        <span>Consent Form (Urdu/Eng)</span>
+      </button>
+      <button type="button" class="ipd-tab-btn" id="ipd-nav-discharge" onclick="switchIPDTab('discharge')">
+        <span class="t-icon">🚪</span>
+        <span>Discharge Summary</span>
+      </button>
+      <button type="button" class="ipd-tab-btn" id="ipd-nav-billing" onclick="switchIPDTab('billing')">
+        <span class="t-icon">💳</span>
+        <span>Hospital Indoor Bill</span>
+      </button>
+      <button type="button" class="ipd-tab-btn" id="ipd-nav-certificate" onclick="switchIPDTab('certificate')">
+        <span class="t-icon">📜</span>
+        <span>Medical Certificate</span>
+      </button>
+      <button type="button" class="ipd-tab-btn" id="ipd-nav-records" onclick="switchIPDTab('records')">
+        <span class="t-icon">📋</span>
+        <span>Active Wards & Records</span>
+      </button>
+    </nav>
+
+    <!-- IPD Main Form Container -->
+    <form id="ipd-form" onsubmit="event.preventDefault(); saveIPDRecord();">
+
+      <!-- PANE 1: ADMISSION & WARD ALLOCATION -->
+      <div class="ipd-tab-content active" id="ipd-pane-admission">
+        
+        <!-- Record Header Bar -->
+        <div class="ipd-card-header-bar">
+          <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+            <span style="font-weight:700;color:var(--text-light);font-size:12px;">ADMISSION ID:</span>
+            <input type="text" id="ipd-record-id" readonly placeholder="Auto-Generated" style="width:140px;font-weight:800;color:var(--teal);background:#f1f5f9;border:1px solid var(--border);" />
+            <span style="font-weight:700;color:var(--text-light);font-size:12px;margin-left:8px;">STATUS:</span>
+            <select id="ipd-record-status" style="width:130px;font-weight:700;">
+              <option value="Admitted">Admitted</option>
+              <option value="Discharged">Discharged</option>
+            </select>
+          </div>
+          <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+            <label style="font-weight:700;color:var(--navy);font-size:12px;">Link Existing Patient MR#:</label>
+            <input type="text" id="ipd-patient-mr" placeholder="MR-00001" style="width:130px;font-weight:700;color:var(--teal);" />
+            <button type="button" class="btn btn-save" onclick="lookupPatientForAdmission(document.getElementById('ipd-patient-mr').value.trim())" style="padding:6px 12px;font-size:11.5px;">
+              🔍 Auto-Fill
+            </button>
+          </div>
+        </div>
+
+        <!-- Patient Demographics Card -->
+        <div class="panel-card">
+          <div class="panel-title">
+            <span class="icon">👤</span>
+            <span>Inpatient Demographics & Registration</span>
+          </div>
+
+          <div class="form-row" style="grid-template-columns: 2fr 1fr 2fr;">
+            <div class="form-group">
+              <label>Patient Full Name *</label>
+              <input type="text" id="ipd-patient-name" placeholder="Patient Name" required style="font-weight:700;" />
+            </div>
+            <div class="form-group">
+              <label>Relation</label>
+              <select id="ipd-patient-relation">
+                <option value="S/O">S/O (Son of)</option>
+                <option value="D/O">D/O (Daughter of)</option>
+                <option value="W/O">W/O (Wife of)</option>
+                <option value="H/O">H/O (Husband of)</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label>Father / Husband / Guardian Name</label>
+              <input type="text" id="ipd-patient-parent" placeholder="Father or Husband name" />
+            </div>
+          </div>
+
+          <div class="form-row" style="grid-template-columns: 1fr 1fr 1.5fr 1.5fr 2fr;">
+            <div class="form-group">
+              <label>Age (Years)</label>
+              <input type="text" id="ipd-patient-age" placeholder="e.g. 35" />
+            </div>
+            <div class="form-group">
+              <label>Gender</label>
+              <select id="ipd-patient-gender">
+                <option value="Male">Male</option>
+                <option value="Female">Female</option>
+                <option value="Child">Child</option>
+                <option value="Other">Other</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label>Phone / WhatsApp</label>
+              <input type="text" id="ipd-patient-phone" placeholder="03XXXXXXXXX" />
+            </div>
+            <div class="form-group">
+              <label>CNIC Number</label>
+              <input type="text" id="ipd-patient-cnic" placeholder="33100-XXXXXXX-X" />
+            </div>
+            <div class="form-group">
+              <label>Emergency Contact Person & Phone</label>
+              <input type="text" id="ipd-patient-emergency" placeholder="Name & Phone of Attendant" />
+            </div>
+          </div>
+
+          <div class="form-row">
+            <div class="form-group" style="width:100%;">
+              <label>Residential Address / City</label>
+              <input type="text" id="ipd-patient-address" placeholder="e.g. Adda Jhaal, Jaranwala" />
+            </div>
+          </div>
+        </div>
+
+        <!-- Ward & Bed Allocation Card -->
+        <div class="panel-card">
+          <div class="panel-title">
+            <span class="icon">🛏</span>
+            <span>Ward Admission & Clinical Bed Allocation</span>
+          </div>
+
+          <div class="form-row" style="grid-template-columns: 1.2fr 1fr 1.5fr 1fr 2fr;">
+            <div class="form-group">
+              <label>Admission Date *</label>
+              <input type="date" id="ipd-adm-date" required />
+            </div>
+            <div class="form-group">
+              <label>Admission Time</label>
+              <input type="text" id="ipd-adm-time" placeholder="HH:MM AM/PM" />
+            </div>
+            <div class="form-group">
+              <label>Ward / Room Allocation *</label>
+              <select id="ipd-adm-ward">
+                <option value="General Ward (Male)">General Ward (Male)</option>
+                <option value="General Ward (Female)">General Ward (Female)</option>
+                <option value="Private Room #1">Private Room #1</option>
+                <option value="Private Room #2">Private Room #2</option>
+                <option value="Semi-Private Ward">Semi-Private Ward</option>
+                <option value="ICU / Post-Op Recovery">ICU / Post-Op Recovery</option>
+                <option value="Day Care / Observation">Day Care / Observation</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label>Bed Number *</label>
+              <input type="text" id="ipd-adm-bed" placeholder="Bed #1" required style="font-weight:700;color:var(--navy);" />
+            </div>
+            <div class="form-group">
+              <label>Admitting Consultant Incharge</label>
+              <input type="text" id="ipd-adm-consultant" value="Dr. Hafiz Ehsan Qadeer" />
+            </div>
+          </div>
+
+          <div class="form-row">
+            <div class="form-group" style="width:100%;">
+              <label>Provisional / Admitting Diagnosis *</label>
+              <input type="text" id="ipd-adm-diagnosis" placeholder="e.g. Acute Appendicitis, Right Inguinal Hernia, Renal Calculus, Cesarean Delivery..." required style="font-weight:700;color:var(--teal);" />
+            </div>
+          </div>
+
+          <!-- Admission Vitals Strip -->
+          <div style="font-size:11px;font-weight:700;text-transform:uppercase;color:var(--text-light);margin:14px 0 8px 0;letter-spacing:0.5px;">
+            Baseline Vitals at Admission:
+          </div>
+          <div class="vitals-grid">
+            <div class="vital-box">
+              <label>Blood Pressure (B.P)</label>
+              <input type="text" id="ipd-adm-bp" placeholder="120/80" />
+            </div>
+            <div class="vital-box">
+              <label>Pulse (/min)</label>
+              <input type="text" id="ipd-adm-pulse" placeholder="78" />
+            </div>
+            <div class="vital-box">
+              <label>Temperature (°F)</label>
+              <input type="text" id="ipd-adm-temp" placeholder="98.6" />
+            </div>
+            <div class="vital-box">
+              <label>Weight (kg)</label>
+              <input type="text" id="ipd-adm-weight" placeholder="65" />
+            </div>
+            <div class="vital-box">
+              <label>Oxygen Saturation (SpO2 %)</label>
+              <input type="text" id="ipd-adm-spo2" placeholder="98%" />
+            </div>
+          </div>
+        </div>
+
+        <!-- Tab 1 Actions -->
+        <div class="ipd-tab-actions">
+          <button type="button" class="btn btn-save" onclick="saveIPDRecord('Admitted')">
+            <span>💾</span> Save Admission Record
+          </button>
+          <button type="button" class="btn btn-primary" onclick="saveIPDRecord('Admitted'); switchIPDTab('surgery');">
+            <span>🔪</span> Next: Surgery & OT Notes ➔
+          </button>
+          <button type="button" class="btn btn-outline" onclick="switchIPDTab('consent')">
+            <span>📝</span> View Consent Form
+          </button>
+          <button type="button" class="btn btn-clear" onclick="resetIPDForm()">
+            <span>✕</span> Clear Form
+          </button>
+        </div>
+
+      </div><!-- /ipd-pane-admission -->
+
+      <!-- PANE 2: SURGERY & OT NOTES -->
+      <div class="ipd-tab-content" id="ipd-pane-surgery" style="display:none;">
+        <div class="panel-card">
+          <div class="panel-title">
+            <span class="icon">🔪</span>
+            <span>Operation Theatre (OT) & Surgical Procedure Record</span>
+          </div>
+
+          <div class="form-row" style="grid-template-columns: 2fr 1fr 1fr;">
+            <div class="form-group">
+              <label>Surgical Procedure Name *</label>
+              <input type="text" id="ipd-surg-procedure" list="common-surgeries-list" placeholder="e.g. Open Appendectomy, Hernioplasty, Cesarean Section..." style="font-weight:700;color:var(--navy);" />
+              <datalist id="common-surgeries-list">
+                <option value="Open Appendectomy">
+                <option value="Inguinal Hernioplasty (Mesh Repair)">
+                <option value="Umbilical Hernioplasty">
+                <option value="Cesarean Section (LSCS)">
+                <option value="Open Cholecystectomy">
+                <option value="Laparoscopic Cholecystectomy">
+                <option value="Hydrocelectomy">
+                <option value="Excision of Lipoma / Sebaceous Cyst">
+                <option value="Circumcision (Plastibell / Conventional)">
+                <option value="Incision & Drainage (Abscess)">
+                <option value="Dilatation & Curettage (D&C)">
+                <option value="Wound Debridement & Secondary Suturing">
+                <option value="Fistulotomy / Fistulectomy">
+                <option value="Hemorrhoidectomy">
+              </datalist>
+            </div>
+            <div class="form-group">
+              <label>Date of Surgery</label>
+              <input type="date" id="ipd-surg-date" />
+            </div>
+            <div class="form-group">
+              <label>Time of Surgery</label>
+              <input type="text" id="ipd-surg-time" placeholder="HH:MM AM/PM" />
+            </div>
+          </div>
+
+          <div class="form-row" style="grid-template-columns: 1.5fr 1.5fr 1.5fr 1fr;">
+            <div class="form-group">
+              <label>Operating Lead Surgeon</label>
+              <input type="text" id="ipd-surg-surgeon" value="Dr. Hafiz Ehsan Qadeer" />
+            </div>
+            <div class="form-group">
+              <label>Assistant Surgeon</label>
+              <input type="text" id="ipd-surg-assistant" placeholder="Assistant doctor / nurse name" />
+            </div>
+            <div class="form-group">
+              <label>Anesthetist Name</label>
+              <input type="text" id="ipd-surg-anesthetist" placeholder="Dr. Anesthetist" />
+            </div>
+            <div class="form-group">
+              <label>Type of Anesthesia</label>
+              <select id="ipd-surg-anesthesia-type">
+                <option value="Spinal Anesthesia">Spinal Anesthesia</option>
+                <option value="General Anesthesia">General Anesthesia</option>
+                <option value="Local Anesthesia">Local Anesthesia</option>
+                <option value="Sedation / MAC">Sedation / MAC</option>
+                <option value="Epidural Anesthesia">Epidural Anesthesia</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="form-row" style="grid-template-columns: 1fr 1fr;">
+            <div class="form-group">
+              <label>Pre-Operative Diagnosis</label>
+              <input type="text" id="ipd-surg-preop" placeholder="Diagnosis prior to surgery" />
+            </div>
+            <div class="form-group">
+              <label>Post-Operative Diagnosis</label>
+              <input type="text" id="ipd-surg-postop" placeholder="Confirmed post-op diagnosis" />
+            </div>
+          </div>
+
+          <div class="form-row">
+            <div class="form-group" style="width:100%;">
+              <label>Operative Findings & Pathology</label>
+              <input type="text" id="ipd-surg-findings" placeholder="e.g. Inflamed appendix, thick walled, purulent fluid, defect size 3x3cm..." />
+            </div>
+          </div>
+
+          <div class="form-row">
+            <div class="form-group" style="width:100%;">
+              <label>Detailed Operative Steps / Procedure Notes</label>
+              <textarea id="ipd-surg-notes" rows="4" placeholder="Brief operative steps: Incision given, findings, steps of procedure, hemostasis secured, closure in layers, sponge/instrument count verified..."></textarea>
+            </div>
+          </div>
+        </div>
+
+        <div class="ipd-tab-actions">
+          <button type="button" class="btn btn-save" onclick="saveIPDRecord()">
+            <span>💾</span> Save OT Record
+          </button>
+          <button type="button" class="btn btn-primary" onclick="syncConsentFields(); switchIPDTab('consent');">
+            <span>📝</span> View & Print Consent Form ➔
+          </button>
+          <button type="button" class="btn btn-outline" onclick="switchIPDTab('discharge')">
+            <span>🚪</span> Go to Discharge Summary
+          </button>
+        </div>
+      </div><!-- /ipd-pane-surgery -->
+
+      <!-- PANE 3: SURGICAL CONSENT FORM -->
+      <div class="ipd-tab-content" id="ipd-pane-consent" style="display:none;">
+        <div class="panel-card">
+          <div class="panel-title">
+            <span class="icon">📝</span>
+            <span>Surgical & Anesthesia Informed Consent Form (طبی و جراحی رضامندی نامہ)</span>
+          </div>
+
+          <div style="background:#F8FAFC;border:1.5px solid #CBD5E1;border-radius:10px;padding:16px 20px;margin-bottom:16px;">
+            <div style="display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid #E2E8F0;padding-bottom:10px;margin-bottom:12px;">
+              <h3 style="color:var(--navy);font-size:15px;font-weight:700;">طبی و جراحی و اینستھیزیا رضامندی نامہ (Informed Consent)</h3>
+              <span class="ipd-badge active">Legal Medical Document</span>
+            </div>
+
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;font-size:13px;margin-bottom:14px;">
+              <div><strong>Patient Name:</strong> <span id="consent-p-name">—</span></div>
+              <div><strong>Parentage:</strong> <span id="consent-p-parent">—</span></div>
+              <div><strong>Age / Gender:</strong> <span id="consent-p-age">—</span></div>
+              <div><strong>Address:</strong> <span id="consent-p-addr">—</span></div>
+              <div style="grid-column:1 / -1;">
+                <strong>Proposed Surgery:</strong> <span id="consent-p-surgery" style="font-weight:700;color:var(--teal);font-size:14px;">—</span>
+              </div>
+              <div style="grid-column:1 / -1;">
+                <strong>Operating Surgeon:</strong> <span id="consent-p-surgeon">Dr. Hafiz Ehsan Qadeer</span>
+              </div>
+            </div>
+
+            <!-- Urdu Consent Statement Preview -->
+            <div style="font-family:var(--font-urdu);direction:rtl;text-align:right;background:#FFF;padding:16px;border:1px solid #CBD5E1;border-radius:8px;line-height:2.2;font-size:12.5pt;color:#1e293b;">
+              میں مسمی / مسمات ہوش و حواس خمسہ میں بلا جبر و اکراہ، اپنی اور اپنے مریض کی جراحی/آپریشن کی مکمل اجازت ڈاکٹر صاحب اور ان کی سرجیکل ٹیم کو دیتا/دیتی ہوں۔ مجھے مطلوبہ آپریشن اور اینستھیزیا (بے ہوشی/سن کرنے) کے طریقہ کار، متوقع فوائد اور اس سے وابستہ ممکنہ خطرات اور پیچیدگیوں سے ڈاکٹر صاحب نے مادری زبان میں تفصیلاً آگاہ کر دیا ہے۔ دورانِ آپریشن یا بعد از آپریشن کسی بھی غیر متوقع ہنگامی صورتحال، اضافی طریقہ کار یا خون کی منتقلی کی ضرورت پر ڈاکٹر صاحب کو بر وقت فیصلہ کرنے کا مکمل قانونی اختیار دیتا/دیتی ہوں۔
+            </div>
+
+            <!-- Witness Inputs -->
+            <div class="form-row" style="grid-template-columns:1fr 1fr;margin-top:16px;">
+              <div class="form-group">
+                <label>Witness Name (گواہ کا نام)</label>
+                <input type="text" id="ipd-consent-witness" placeholder="Name of Relative / Attendant" />
+              </div>
+              <div class="form-group">
+                <label>Witness Relation / CNIC (رشتہ یا شناختی کارڈ نمبر)</label>
+                <input type="text" id="ipd-consent-relation" placeholder="e.g. Brother, CNIC: 33100-XXXXXXX-X" />
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="ipd-tab-actions">
+          <button type="button" class="btn btn-print-rx" onclick="openIPDPrint('consent')">
+            <span>🖨</span> Print Surgical Consent Form (A4)
+          </button>
+          <button type="button" class="btn btn-save" onclick="saveIPDRecord()">
+            <span>💾</span> Save Consent Details
+          </button>
+          <button type="button" class="btn btn-outline" onclick="switchIPDTab('discharge')">
+            <span>🚪</span> Go to Discharge Summary
+          </button>
+        </div>
+      </div><!-- /ipd-pane-consent -->
+
+      <!-- PANE 4: DISCHARGE SUMMARY -->
+      <div class="ipd-tab-content" id="ipd-pane-discharge" style="display:none;">
+        <div class="panel-card">
+          <div class="panel-title">
+            <span class="icon">🚪</span>
+            <span>Hospital Discharge Summary & Treatment Record</span>
+          </div>
+
+          <div class="form-row" style="grid-template-columns: 1.2fr 1fr 1fr 1.5fr;">
+            <div class="form-group">
+              <label>Discharge Date *</label>
+              <input type="date" id="ipd-dis-date" />
+            </div>
+            <div class="form-group">
+              <label>Discharge Time</label>
+              <input type="text" id="ipd-dis-time" placeholder="HH:MM AM/PM" />
+            </div>
+            <div class="form-group">
+              <label>Stay Duration (Days)</label>
+              <input type="number" id="ipd-stay-days" min="1" value="1" style="font-weight:700;color:var(--navy);" />
+            </div>
+            <div class="form-group">
+              <label>Condition at Discharge</label>
+              <select id="ipd-dis-condition" style="font-weight:700;color:var(--teal);">
+                <option value="Improved / Stable">Improved / Stable (بہتر و مستحکم)</option>
+                <option value="Cured / Satisfactory">Cured / Satisfactory (مکمل صحت یاب)</option>
+                <option value="Discharged on Request (LAMA)">Discharged on Request / LAMA (خواہش پر رخصت)</option>
+                <option value="Referred to Tertiary Hospital">Referred to Tertiary Hospital (ریفر کیا گیا)</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="form-row">
+            <div class="form-group" style="width:100%;">
+              <label>Final Discharge Diagnosis *</label>
+              <input type="text" id="ipd-dis-diagnosis" placeholder="Final diagnosis confirmed during hospitalization" style="font-weight:700;color:var(--teal);" />
+            </div>
+          </div>
+
+          <div class="form-row">
+            <div class="form-group" style="width:100%;">
+              <label>Summary of Hospital Course & Clinical Treatment Given</label>
+              <textarea id="ipd-dis-course" rows="3" placeholder="Patient admitted with above symptoms, managed conservatively/surgically according to protocol. Vital signs monitored, antibiotic coverage, analgesic protocol, wound inspected..."></textarea>
+            </div>
+          </div>
+
+          <div class="form-row">
+            <div class="form-group" style="width:100%;">
+              <label style="color:var(--teal);font-weight:700;font-size:13.5px;">Discharge Medications / Home Treatment (Rx) *</label>
+              <textarea id="ipd-dis-meds" rows="4" placeholder="Enter medicines, dosage, and duration for home care:&#10;1. Cap. Amoxicillin/Clav 625mg — 1 tab BD x 5 days&#10;2. Tab. Paracetamol 500mg — 1 tab TDS&#10;3. Tab. Omeprazole 20mg — 1 cap before breakfast x 7 days..."></textarea>
+            </div>
+          </div>
+
+          <div class="form-row" style="grid-template-columns: 2fr 1fr;">
+            <div class="form-group">
+              <label>Dietary & Activity Advice / Wound Care</label>
+              <input type="text" id="ipd-dis-instructions" placeholder="Normal light diet, avoid heavy lifting, keep surgical wound dry and clean..." />
+            </div>
+            <div class="form-group">
+              <label>Follow-up Visit Date</label>
+              <input type="text" id="ipd-dis-followup" placeholder="e.g. After 7 days / Specific Date" />
+            </div>
+          </div>
+        </div>
+
+        <div class="ipd-tab-actions">
+          <button type="button" class="btn btn-save" onclick="saveIPDRecord('Discharged')">
+            <span>💾</span> Save & Mark Discharged
+          </button>
+          <button type="button" class="btn btn-print-rx" onclick="openIPDPrint('discharge')">
+            <span>🖨</span> Print Discharge Summary (A4)
+          </button>
+          <button type="button" class="btn btn-primary" onclick="switchIPDTab('billing')">
+            <span>💳</span> Proceed to Final Hospital Bill ➔
+          </button>
+        </div>
+      </div><!-- /ipd-pane-discharge -->
+
+      <!-- PANE 5: HOSPITAL INDOOR BILL -->
+      <div class="ipd-tab-content" id="ipd-pane-billing" style="display:none;">
+        <div class="panel-card">
+          <div class="panel-title">
+            <span class="icon">💳</span>
+            <span>Itemized Indoor Hospital Bill & Receipt (فائنل انڈور بل)</span>
+          </div>
+
+          <div style="display:grid;grid-template-columns: 2fr 1fr;gap:20px;">
+            <!-- Left: Breakdown Fields -->
+            <div>
+              <div class="form-row" style="grid-template-columns: 1fr 1fr 1.2fr;">
+                <div class="form-group">
+                  <label>Room Rate (Rs/Day)</label>
+                  <input type="number" id="ipd-bill-room-rate" value="1500" min="0" />
+                </div>
+                <div class="form-group">
+                  <label>Days Stayed</label>
+                  <input type="number" id="ipd-bill-days" value="1" min="1" />
+                </div>
+                <div class="form-group">
+                  <label>Room Total (Rs)</label>
+                  <input type="number" id="ipd-bill-room-total" readonly style="font-weight:700;background:#f1f5f9;" />
+                </div>
+              </div>
+
+              <div class="form-row" style="grid-template-columns: 1fr 1fr;">
+                <div class="form-group">
+                  <label>Operation Theatre (OT) Charges (Rs)</label>
+                  <input type="number" id="ipd-bill-ot" value="0" min="0" />
+                </div>
+                <div class="form-group">
+                  <label>Surgeon Operation Fee (Rs)</label>
+                  <input type="number" id="ipd-bill-surgeon" value="0" min="0" />
+                </div>
+              </div>
+
+              <div class="form-row" style="grid-template-columns: 1fr 1fr;">
+                <div class="form-group">
+                  <label>Anesthesia Fee (Rs)</label>
+                  <input type="number" id="ipd-bill-anesthesia" value="0" min="0" />
+                </div>
+                <div class="form-group">
+                  <label>Hospital Medicines & Consumables (Rs)</label>
+                  <input type="number" id="ipd-bill-meds" value="0" min="0" />
+                </div>
+              </div>
+
+              <div class="form-row" style="grid-template-columns: 1fr 1fr 1fr;">
+                <div class="form-group">
+                  <label>Nursing Care Charges (Rs)</label>
+                  <input type="number" id="ipd-bill-nursing" value="0" min="0" />
+                </div>
+                <div class="form-group">
+                  <label>Laboratory / Tests (Rs)</label>
+                  <input type="number" id="ipd-bill-lab" value="0" min="0" />
+                </div>
+                <div class="form-group">
+                  <label>Other Charges (Rs)</label>
+                  <input type="number" id="ipd-bill-others" value="0" min="0" />
+                </div>
+              </div>
+
+              <div class="form-row" style="grid-template-columns: 1fr 1fr 1.5fr;">
+                <div class="form-group">
+                  <label>Discount / Concession (Rs)</label>
+                  <input type="number" id="ipd-bill-discount" value="0" min="0" />
+                </div>
+                <div class="form-group">
+                  <label>Advance Deposit Paid (Rs)</label>
+                  <input type="number" id="ipd-bill-advance" value="0" min="0" />
+                </div>
+                <div class="form-group">
+                  <label>Payment Status</label>
+                  <select id="ipd-bill-status" style="font-weight:700;">
+                    <option value="Paid">Paid in Full (ادا شدہ)</option>
+                    <option value="Partial">Partial Payment (جزوی)</option>
+                    <option value="Unpaid">Unpaid / Due (بقایا)</option>
+                  </select>
+                </div>
+              </div>
+            </div>
+
+            <!-- Right: Live Invoice Summary Card -->
+            <div style="background:#F8FAFC;border:1.5px solid #CBD5E1;border-radius:12px;padding:20px;display:flex;flex-direction:column;justify-content:space-between;">
+              <div>
+                <h4 style="font-size:13px;font-weight:800;color:var(--text-light);text-transform:uppercase;margin-bottom:14px;letter-spacing:0.5px;">
+                  Financial Bill Summary
+                </h4>
+                <div style="display:flex;justify-content:space-between;margin-bottom:10px;font-size:13.5px;">
+                  <span>Gross Hospital Total:</span>
+                  <strong id="ipd-summary-gross">Rs. 0</strong>
+                  <input type="hidden" id="ipd-bill-gross" value="0" />
+                </div>
+                <div style="display:flex;justify-content:space-between;margin-bottom:10px;font-size:13.5px;color:var(--teal);">
+                  <span>Discount / Concession:</span>
+                  <strong id="ipd-summary-discount">- Rs. 0</strong>
+                </div>
+                <div style="display:flex;justify-content:space-between;margin-bottom:10px;font-size:13.5px;color:var(--navy);">
+                  <span>Advance Paid:</span>
+                  <strong id="ipd-summary-advance">- Rs. 0</strong>
+                </div>
+                <hr style="border:none;border-top:1.5px dashed #CBD5E1;margin:12px 0;" />
+              </div>
+
+              <!-- Big Net Display -->
+              <div style="background:#E6F5F0;border:1.5px solid #B2DFD4;border-radius:10px;padding:16px;text-align:center;">
+                <div style="font-size:11px;font-weight:800;color:var(--teal);text-transform:uppercase;letter-spacing:1px;">
+                  Net Amount Payable
+                </div>
+                <div style="font-size:26px;font-weight:800;color:#008060;margin:6px 0;" id="ipd-bill-net-display">
+                  Rs. 0
+                </div>
+                <input type="hidden" id="ipd-bill-net" value="0" />
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="ipd-tab-actions">
+          <button type="button" class="btn btn-save" onclick="saveIPDRecord()">
+            <span>💾</span> Save Hospital Bill
+          </button>
+          <button type="button" class="btn btn-print-rx" onclick="openIPDPrint('bill')">
+            <span>🖨</span> Print Indoor Hospital Bill (A4)
+          </button>
+          <button type="button" class="btn btn-outline" onclick="switchIPDTab('certificate')">
+            <span>📜</span> Create Medical Fitness Certificate
+          </button>
+        </div>
+      </div><!-- /ipd-pane-billing -->
+
+      <!-- PANE 6: MEDICAL FITNESS CERTIFICATE -->
+      <div class="ipd-tab-content" id="ipd-pane-certificate" style="display:none;">
+        <div class="panel-card">
+          <div class="panel-title">
+            <span class="icon">📜</span>
+            <span>Medical Fitness & Sick Leave Certificate (طبی سرٹیفکیٹ)</span>
+          </div>
+
+          <div class="form-row" style="grid-template-columns: 1.5fr 2fr 1fr;">
+            <div class="form-group">
+              <label>Certificate Type *</label>
+              <select id="ipd-cert-type" style="font-weight:700;color:var(--navy);">
+                <option value="Medical Rest">Medical Rest / Sick Leave (طبی رخصت نامہ)</option>
+                <option value="Fitness Certificate">Medical Fitness Certificate (صحت و تندرستی کا سرٹیفکیٹ)</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label>Patient Full Name</label>
+              <input type="text" id="ipd-cert-name" placeholder="Patient Name" style="font-weight:700;" />
+            </div>
+            <div class="form-group">
+              <label>Certificate Date</label>
+              <input type="date" id="ipd-cert-date" />
+            </div>
+          </div>
+
+          <div class="form-row" style="grid-template-columns: 1fr 1fr 1fr;">
+            <div class="form-group">
+              <label>Parentage</label>
+              <input type="text" id="ipd-cert-parent" placeholder="Father/Husband" />
+            </div>
+            <div class="form-group">
+              <label>Age</label>
+              <input type="text" id="ipd-cert-age" placeholder="Age" />
+            </div>
+            <div class="form-group">
+              <label>Diagnosis / Clinical Reason</label>
+              <input type="text" id="ipd-cert-diag" placeholder="Disease / Post-surgical recovery" style="font-weight:600;" />
+            </div>
+          </div>
+
+          <div class="form-row" style="grid-template-columns: 1fr 1fr 1fr;">
+            <div class="form-group">
+              <label>Rest Period: From Date</label>
+              <input type="date" id="ipd-cert-from" />
+            </div>
+            <div class="form-group">
+              <label>Rest Period: To Date</label>
+              <input type="date" id="ipd-cert-to" />
+            </div>
+            <div class="form-group">
+              <label>Total Days Advised</label>
+              <input type="number" id="ipd-cert-days" min="1" value="1" style="font-weight:700;color:var(--teal);" />
+            </div>
+          </div>
+
+          <div class="form-row">
+            <div class="form-group" style="width:100%;">
+              <label>Special Instructions / Fitness Statement Remarks</label>
+              <input type="text" id="ipd-cert-remarks" placeholder="e.g. Advised complete physical rest / Fit to resume duties from specified date." />
+            </div>
+          </div>
+        </div>
+
+        <div class="ipd-tab-actions">
+          <button type="button" class="btn btn-print-rx" onclick="openIPDPrint('certificate')">
+            <span>🖨</span> Print Medical Certificate (A4/A5)
+          </button>
+          <button type="button" class="btn btn-save" onclick="saveIPDRecord()">
+            <span>💾</span> Save Certificate
+          </button>
+        </div>
+      </div><!-- /ipd-pane-certificate -->
+
+      <!-- PANE 7: ACTIVE WARDS & ADMISSIONS ROSTER -->
+      <div class="ipd-tab-content" id="ipd-pane-records" style="display:none;">
+        <div class="panel-card">
+          <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px;margin-bottom:16px;">
+            <div class="panel-title" style="margin-bottom:0;">
+              <span class="icon">📋</span>
+              <span>Hospital Inpatients & Wards Roster</span>
+            </div>
+            <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+              <select id="ipd-filter-status" onchange="renderActiveAdmissionsTable()" style="padding:6px 12px;font-weight:700;">
+                <option value="Active">Currently Admitted (Active)</option>
+                <option value="Discharged">Discharged History</option>
+                <option value="All">All Inpatient Records</option>
+              </select>
+              <input type="text" id="ipd-search-records" oninput="renderActiveAdmissionsTable()" placeholder="Search by Name, MR#, Ward, Phone..." style="width:240px;padding:6px 12px;" />
+              <button type="button" class="btn btn-outline" onclick="renderActiveAdmissionsTable()" title="Refresh Ward Records">🔄</button>
+            </div>
+          </div>
+
+          <!-- Inpatients Table -->
+          <div style="overflow-x:auto;">
+            <table class="ipd-records-table">
+              <thead>
+                <tr>
+                  <th>Adm ID / MR#</th>
+                  <th>Patient Name</th>
+                  <th>Ward & Bed</th>
+                  <th>Adm Date / Stay</th>
+                  <th>Diagnosis / Procedure</th>
+                  <th>Status</th>
+                  <th>Bill (PKR)</th>
+                  <th style="min-width:180px;">Actions</th>
+                </tr>
+              </thead>
+              <tbody id="ipd-admissions-tbody">
+                <tr>
+                  <td colspan="8" style="text-align:center;padding:24px;color:var(--text-light);">Loading admissions...</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div><!-- /ipd-pane-records -->
+
+    </form>
+  </div><!-- /ipd-container -->
+
+  <!-- ── MODAL: IPD DOCUMENT PRINT PREVIEW (Consent, Discharge, Bill, Certificate) ── -->
+  <div class="modal-backdrop" id="modal-ipd-print">
+    <div class="modal-card" style="max-width:230mm;max-height:95vh;">
+      <div class="modal-header">
+        <h2 id="ipd-print-title">🖨 Print Preview — Hajra Medical Complex Jaranwala</h2>
+        <div style="display:flex;gap:10px;">
+          <button type="button" class="btn btn-save" onclick="triggerIPDPrint()" style="padding:6px 16px;font-size:13px;font-weight:700;">🖨 Print Now</button>
+          <button type="button" class="modal-close" onclick="closeIPDPrint()">✕</button>
+        </div>
+      </div>
+      <div class="modal-body" style="padding:24px 16px;background:#525659;display:flex;justify-content:center;overflow:auto;">
+        <div id="ipd-print-sheet-content">
+          <!-- Rendered document injected here -->
+        </div>
+      </div>
+    </div>
+  </div>
+
 
   <!-- ── MODAL: PRESCRIPTION PREVIEW (Exact A4 Print Layout) ───────── -->
   <div class="modal-backdrop" id="modal-rx-preview">
@@ -1085,6 +1858,7 @@
   <script src="js/templates-data.js"></script>
   <script src="js/db.js"></script>
   <script src="js/app.js"></script>
+  <script src="js/ipd.js"></script>
   <script>
     if ('serviceWorker' in navigator && window.location.protocol.startsWith('http')) {
       window.addEventListener('load', () => {
