@@ -331,41 +331,66 @@ async function getVisitBySerial(serialNo) {
 }
 
 async function searchPatients(query) {
-  if (!query || !query.trim()) return [];
-  const q = query.trim().toLowerCase();
+  const q = (query || '').trim().toLowerCase();
   const db = await initDB();
 
   return new Promise((resolve) => {
-    // Open visits, patients, and admissions stores
-    const tx = db.transaction(['visits', 'patients', 'admissions'], 'readonly');
-    const vStore = tx.objectStore('visits');
-    const pStore = tx.objectStore('patients');
-    const aStore = tx.objectStore('admissions');
+    // Dynamically check which stores exist in this database
+    const availableStores = ['visits', 'patients', 'admissions'].filter(s => db.objectStoreNames.contains(s));
+    if (availableStores.length === 0) {
+      return resolve([]);
+    }
 
-    const vReq = vStore.getAll();
-    const pReq = pStore.getAll();
-    const aReq = aStore.getAll();
+    let tx;
+    try {
+      tx = db.transaction(availableStores, 'readonly');
+    } catch (txErr) {
+      console.warn('searchPatients transaction error:', txErr);
+      return resolve([]);
+    }
 
-    let doneCount = 0;
     let allVisits = [];
     let allPatients = [];
     let allAdmissions = [];
+    let pending = availableStores.length;
 
-    const processAll = () => {
-      doneCount++;
-      if (doneCount < 3) return;
+    const checkComplete = () => {
+      pending--;
+      if (pending > 0) return;
 
       const map = new Map();
+      const cleanQ = q.replace(/[\s\-_]/g, '');
 
-      // 1. Process visits
+      // Helper matcher
+      const matches = (obj) => {
+        if (!q) return true; // Empty query returns all/recent patients
+        const name = (obj.name || obj.patientName || '').toLowerCase();
+        const mr = (obj.mrNumber || '').toLowerCase();
+        const ph = (obj.phone || '').toLowerCase();
+        const addr = (obj.address || '').toLowerCase();
+        const cnic = (obj.cnic || '').toLowerCase();
+        const ward = (obj.ward || '').toLowerCase();
+        const admId = (obj.admissionId || '').toLowerCase();
+
+        const cleanPh = ph.replace(/[\s\-_]/g, '');
+        const cleanMr = mr.replace(/[\s\-_]/g, '');
+        const cleanAdm = admId.replace(/[\s\-_]/g, '');
+
+        return name.includes(q) || 
+               mr.includes(q) || 
+               cleanMr.includes(cleanQ) || 
+               ph.includes(q) || 
+               cleanPh.includes(cleanQ) || 
+               addr.includes(q) || 
+               cnic.includes(q) || 
+               ward.includes(q) || 
+               admId.includes(q) ||
+               cleanAdm.includes(cleanQ);
+      };
+
+      // 1. Visits store
       allVisits.forEach(v => {
-        const name = (v.name || '').toLowerCase();
-        const mr = (v.mrNumber || '').toLowerCase();
-        const ph = (v.phone || '').toLowerCase();
-        const addr = (v.address || '').toLowerCase();
-        const cnic = (v.cnic || '').toLowerCase();
-
-        if (name.includes(q) || mr.includes(q) || ph.includes(q) || addr.includes(q) || cnic.includes(q)) {
+        if (matches(v)) {
           const key = v.mrNumber || v.name;
           if (!map.has(key) || (v.visitNo > (map.get(key).visitNo || 0))) {
             map.set(key, Object.assign({}, v));
@@ -373,20 +398,13 @@ async function searchPatients(query) {
         }
       });
 
-      // 2. Process patients store
+      // 2. Patients store
       allPatients.forEach(p => {
-        const name = (p.name || '').toLowerCase();
-        const mr = (p.mrNumber || '').toLowerCase();
-        const ph = (p.phone || '').toLowerCase();
-        const addr = (p.address || '').toLowerCase();
-        const cnic = (p.cnic || '').toLowerCase();
-
-        if (name.includes(q) || mr.includes(q) || ph.includes(q) || addr.includes(q) || cnic.includes(q)) {
+        if (matches(p)) {
           const key = p.mrNumber || p.name;
           if (!map.has(key)) {
             map.set(key, Object.assign({}, p));
           } else {
-            // Merge demographic fields if missing
             const ex = map.get(key);
             ex.name = ex.name || p.name;
             ex.parentage = ex.parentage || p.parentage;
@@ -400,15 +418,9 @@ async function searchPatients(query) {
         }
       });
 
-      // 3. Process admissions store (tag active admissions)
+      // 3. Admissions store
       allAdmissions.forEach(a => {
-        const name = (a.patientName || '').toLowerCase();
-        const mr = (a.mrNumber || '').toLowerCase();
-        const ph = (a.phone || '').toLowerCase();
-        const ward = (a.ward || '').toLowerCase();
-        const admId = (a.admissionId || '').toLowerCase();
-
-        if (name.includes(q) || mr.includes(q) || ph.includes(q) || ward.includes(q) || admId.includes(q)) {
+        if (matches(a)) {
           const key = a.mrNumber || a.patientName;
           if (!map.has(key)) {
             map.set(key, {
@@ -421,6 +433,8 @@ async function searchPatients(query) {
               phone: a.phone,
               address: a.address,
               cnic: a.cnic,
+              ward: a.ward,
+              bedNumber: a.bedNumber,
               diagnosis: a.admittingDiagnosis,
               latestAdmission: a,
               isActiveInpatient: a.status !== 'Discharged'
@@ -428,6 +442,8 @@ async function searchPatients(query) {
           } else {
             const ex = map.get(key);
             ex.latestAdmission = a;
+            ex.ward = a.ward || ex.ward;
+            ex.bedNumber = a.bedNumber || ex.bedNumber;
             if (a.status !== 'Discharged') {
               ex.isActiveInpatient = true;
             }
@@ -437,22 +453,29 @@ async function searchPatients(query) {
 
       const list = Array.from(map.values());
       list.sort((a, b) => {
-        // Prioritize active inpatients first, then newest
         if (a.isActiveInpatient && !b.isActiveInpatient) return -1;
         if (!a.isActiveInpatient && b.isActiveInpatient) return 1;
         return (b.serialNo || 0) - (a.serialNo || 0);
       });
-      resolve(list);
+
+      resolve(list.slice(0, 30));
     };
 
-    vReq.onsuccess = () => { allVisits = vReq.result || []; processAll(); };
-    vReq.onerror = () => processAll();
-
-    pReq.onsuccess = () => { allPatients = pReq.result || []; processAll(); };
-    pReq.onerror = () => processAll();
-
-    aReq.onsuccess = () => { allAdmissions = aReq.result || []; processAll(); };
-    aReq.onerror = () => processAll();
+    if (availableStores.includes('visits')) {
+      const vReq = tx.objectStore('visits').getAll();
+      vReq.onsuccess = () => { allVisits = vReq.result || []; checkComplete(); };
+      vReq.onerror = () => checkComplete();
+    }
+    if (availableStores.includes('patients')) {
+      const pReq = tx.objectStore('patients').getAll();
+      pReq.onsuccess = () => { allPatients = pReq.result || []; checkComplete(); };
+      pReq.onerror = () => checkComplete();
+    }
+    if (availableStores.includes('admissions')) {
+      const aReq = tx.objectStore('admissions').getAll();
+      aReq.onsuccess = () => { allAdmissions = aReq.result || []; checkComplete(); };
+      aReq.onerror = () => checkComplete();
+    }
   });
 }
 

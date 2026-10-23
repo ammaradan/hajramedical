@@ -153,16 +153,59 @@ function handleIPDPatientSearch(query) {
   }, 160);
 }
 
+async function triggerIPDSearch() {
+  const inp = document.getElementById('ipd-global-search');
+  const query = inp ? inp.value.trim() : '';
+  const dropdown = document.getElementById('ipd-search-dropdown');
+  if (!dropdown) return;
+
+  dropdown.innerHTML = '<div style="padding:16px;text-align:center;color:var(--navy);font-weight:600;">🔍 Searching patients...</div>';
+  dropdown.style.display = 'block';
+
+  try {
+    const results = await HMC_DB.searchPatients(query);
+    renderIPDSearchDropdown(results, query);
+  } catch (err) {
+    console.error('triggerIPDSearch error:', err);
+    dropdown.innerHTML = `<div style="padding:16px;color:#dc2626;">Error searching patients: ${escapeHtml(err.message)}</div>`;
+  }
+}
+
+async function showAllIPDPatients() {
+  const inp = document.getElementById('ipd-global-search');
+  if (inp) inp.value = '';
+  const clearBtn = document.getElementById('btn-ipd-clear-search');
+  if (clearBtn) clearBtn.style.display = 'none';
+
+  const dropdown = document.getElementById('ipd-search-dropdown');
+  if (!dropdown) return;
+
+  dropdown.innerHTML = '<div style="padding:16px;text-align:center;color:var(--navy);font-weight:600;">📋 Loading all patients & inpatients...</div>';
+  dropdown.style.display = 'block';
+
+  try {
+    const results = await HMC_DB.searchPatients('');
+    renderIPDSearchDropdown(results, '');
+  } catch (err) {
+    console.error('showAllIPDPatients error:', err);
+    dropdown.innerHTML = `<div style="padding:16px;color:#dc2626;">Error loading patients: ${escapeHtml(err.message)}</div>`;
+  }
+}
+
 function clearIPDPatientSearch() {
   const inp = document.getElementById('ipd-global-search');
   if (inp) inp.value = '';
+  closeIPDSearchDropdown();
+  const clearBtn = document.getElementById('btn-ipd-clear-search');
+  if (clearBtn) clearBtn.style.display = 'none';
+}
+
+function closeIPDSearchDropdown() {
   const dropdown = document.getElementById('ipd-search-dropdown');
   if (dropdown) {
     dropdown.style.display = 'none';
     dropdown.innerHTML = '';
   }
-  const clearBtn = document.getElementById('btn-ipd-clear-search');
-  if (clearBtn) clearBtn.style.display = 'none';
 }
 
 function renderIPDSearchDropdown(results, query) {
@@ -171,11 +214,19 @@ function renderIPDSearchDropdown(results, query) {
 
   if (!results || results.length === 0) {
     dropdown.innerHTML = `
-      <div style="padding:14px;text-align:center;color:var(--text-light);font-size:13px;">
-        No patients found matching "<strong>${escapeHtml(query)}</strong>".
-        <div style="margin-top:8px;">
-          <button type="button" class="btn btn-sm btn-save" onclick="startNewPatientFromSearch('${escapeHtml(query)}')">
-            ➕ Register "${escapeHtml(query)}" as New Patient
+      <div style="padding:18px;text-align:center;color:var(--text);font-size:13.5px;">
+        <div style="font-weight:700;margin-bottom:6px;color:var(--navy);">
+          ${query ? `No patients found matching "${escapeHtml(query)}"` : 'No registered patients found.'}
+        </div>
+        <div style="font-size:12px;color:var(--text-light);margin-bottom:12px;">
+          You can admit a new patient directly by entering their details below.
+        </div>
+        <div>
+          <button type="button" class="btn btn-save" onclick="startNewPatientFromSearch('${escapeHtml(query)}')">
+            ➕ Register "${escapeHtml(query || 'New Patient')}" for Admission
+          </button>
+          <button type="button" class="btn btn-outline" onclick="closeIPDSearchDropdown()" style="margin-left:8px;">
+            ✕ Close
           </button>
         </div>
       </div>`;
@@ -183,34 +234,47 @@ function renderIPDSearchDropdown(results, query) {
     return;
   }
 
-  let html = '';
-  results.slice(0, 15).forEach((p, idx) => {
+  let html = `
+    <div style="display:flex;justify-content:space-between;align-items:center;padding:8px 12px;background:#f8fafc;border-bottom:1px solid #e2e8f0;border-radius:8px 8px 0 0;">
+      <span style="font-size:12px;font-weight:700;color:var(--navy);">
+        ${query ? `Search Results for "${escapeHtml(query)}"` : 'Recent & Inpatient Records'} (${results.length} found)
+      </span>
+      <button type="button" class="modal-close" onclick="closeIPDSearchDropdown()" style="font-size:14px;color:var(--text-light);background:none;border:none;cursor:pointer;padding:2px 6px;">✕</button>
+    </div>
+    <div style="max-height:360px;overflow-y:auto;padding:4px 0;">
+  `;
+
+  results.slice(0, 30).forEach((p, idx) => {
     const isAdmitted = p.isActiveInpatient || (p.latestAdmission && p.latestAdmission.status !== 'Discharged');
+    const wardBed = (p.latestAdmission && p.latestAdmission.ward) ? `${p.latestAdmission.ward} - ${p.latestAdmission.bedNumber || 'Bed #1'}` : (p.ward ? `${p.ward} - ${p.bedNumber || ''}` : '');
     const badgeHtml = isAdmitted
-      ? `<span class="ipd-badge active" style="font-size:10px;">🟢 Admitted (${escapeHtml(p.latestAdmission.ward || 'Ward')})</span>`
-      : `<span class="ipd-badge" style="background:#e0f2fe;color:#0369a1;font-size:10px;">🩺 OPD Patient</span>`;
+      ? `<span class="ipd-badge active" style="font-size:10.5px;">🟢 Currently Admitted (${escapeHtml(wardBed)})</span>`
+      : `<span class="ipd-badge" style="background:#e0f2fe;color:#0369a1;font-size:10.5px;">🩺 OPD Patient</span>`;
 
     const metaParts = [];
     if (p.mrNumber) metaParts.push(`<strong>${escapeHtml(p.mrNumber)}</strong>`);
-    if (p.age) metaParts.push(`${escapeHtml(p.age)}y`);
+    if (p.age) metaParts.push(`${escapeHtml(p.age)} yrs`);
     if (p.gender) metaParts.push(`${escapeHtml(p.gender)}`);
     if (p.parentage) metaParts.push(`${escapeHtml(p.relation || 'S/O')} ${escapeHtml(p.parentage)}`);
     if (p.phone) metaParts.push(`📞 ${escapeHtml(p.phone)}`);
-    if (p.address) metaParts.push(`📍 ${escapeHtml(p.address.slice(0, 25))}`);
+    if (p.address) metaParts.push(`📍 ${escapeHtml(p.address.slice(0, 26))}`);
 
     html += `
       <div class="ipd-search-item ${isAdmitted ? 'admitted' : 'opd'}" onclick="selectPatientForIPD(${idx})">
         <div class="ipd-item-main">
-          <div class="ipd-item-name">${highlightMatch(p.name || 'Unnamed', query)}</div>
+          <div class="ipd-item-name">${highlightMatch(p.name || p.patientName || 'Unnamed', query)}</div>
           <div class="ipd-item-meta">${metaParts.join(' &nbsp;•&nbsp; ')}</div>
         </div>
         <div class="ipd-item-badges">
           ${badgeHtml}
-          <span style="font-size:11.5px;color:var(--teal);font-weight:700;">Select ➔</span>
+          <button type="button" class="btn btn-sm btn-outline" style="padding:4px 9px;font-size:11px;pointer-events:none;">
+            Select ➔
+          </button>
         </div>
       </div>`;
   });
 
+  html += '</div>';
   dropdown.innerHTML = html;
   dropdown.style.display = 'block';
   window._lastIPDSearchResults = results;
@@ -221,25 +285,26 @@ function selectPatientForIPD(index) {
   if (!results || !results[index]) return;
   const p = results[index];
 
-  clearIPDPatientSearch();
+  closeIPDSearchDropdown();
   populateIPDDemographics(p);
 
   // If patient already has an active admission, load it!
-  if (p.latestAdmission && p.latestAdmission.admissionId) {
-    loadAdmissionRecord(p.latestAdmission.admissionId);
-    showToast(`Loaded Active Inpatient: ${p.name} (${p.latestAdmission.admissionId})`, 'success');
+  const adm = p.latestAdmission || (p.admissionId ? p : null);
+  if (adm && adm.admissionId) {
+    loadAdmissionRecord(adm.admissionId);
+    showToast(`Loaded Active Inpatient: ${p.name || p.patientName} (${adm.admissionId})`, 'success');
   } else {
     // New admission for this patient
     setVal('ipd-record-id', '');
     setVal('ipd-record-status', 'Admitted');
     setupIPDAutoDates();
     updateActivePatientStrip({
-      patientName: p.name,
+      patientName: p.name || p.patientName,
       mrNumber: p.mrNumber,
       status: 'Ready for Admission',
       ward: getVal('ipd-adm-ward') || 'General Ward'
     });
-    showToast(`Selected Patient: ${p.name} (MR# ${p.mrNumber}). Ready for Ward Admission.`, 'info');
+    showToast(`Selected Patient: ${p.name || p.patientName} (MR# ${p.mrNumber}). Ready for Ward Admission.`, 'info');
   }
 }
 

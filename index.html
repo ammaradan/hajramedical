@@ -516,22 +516,31 @@
 
     <!-- ── IPD PATIENT LIVE SEARCH & CONTEXT BAR (Available across all IPD tabs) ── -->
     <div class="ipd-search-bar-container" id="ipd-search-box-wrap">
-      <div class="ipd-search-input-wrap">
-        <span class="search-icon">🔍</span>
-        <input 
-          type="text" 
-          class="ipd-search-input" 
-          id="ipd-global-search" 
-          placeholder="Search patient by Name, MR#, Phone, or Short Key (e.g. Ali, 0001, 0300...) for Admission, OT, Discharge, or Billing..." 
-          autocomplete="off"
-          oninput="handleIPDPatientSearch(this.value)"
-          onfocus="handleIPDPatientSearch(this.value)"
-        />
-        <button type="button" class="ipd-search-clear-btn" id="btn-ipd-clear-search" onclick="clearIPDPatientSearch()" style="display:none;" title="Clear search">✕</button>
+      <div class="ipd-search-controls-row">
+        <div class="ipd-search-input-wrap">
+          <span class="search-icon">🔍</span>
+          <input 
+            type="text" 
+            class="ipd-search-input" 
+            id="ipd-global-search" 
+            placeholder="Search patient by Name, MR#, Phone, or Short Key (e.g. Ali, 0001, 0300...)" 
+            autocomplete="off"
+            oninput="handleIPDPatientSearch(this.value)"
+            onkeydown="if(event.key==='Enter'){event.preventDefault(); triggerIPDSearch();}"
+          />
+          <button type="button" class="ipd-search-clear-btn" id="btn-ipd-clear-search" onclick="clearIPDPatientSearch()" style="display:none;" title="Clear search">✕</button>
+        </div>
         
-        <!-- Live Search Dropdown Menu -->
-        <div id="ipd-search-dropdown" class="ipd-search-dropdown" style="display:none;"></div>
+        <button type="button" class="btn btn-save" onclick="triggerIPDSearch()" style="padding:10px 18px;font-weight:700;font-size:13px;white-space:nowrap;">
+          <span>🔍</span> Search Patient
+        </button>
+        <button type="button" class="btn btn-outline" onclick="showAllIPDPatients()" style="padding:10px 14px;font-weight:600;font-size:13px;white-space:nowrap;">
+          <span>📋</span> Browse All
+        </button>
       </div>
+
+      <!-- Live Search Dropdown Menu -->
+      <div id="ipd-search-dropdown" class="ipd-search-dropdown" style="display:none;"></div>
 
       <div class="ipd-patient-active-strip">
         <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
