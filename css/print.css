@@ -34,6 +34,8 @@
   margin-bottom: 2mm;
   max-height: 38mm;
   object-fit: contain;
+  image-rendering: -webkit-optimize-contrast;
+  image-rendering: crisp-edges;
 }
 
 /* VCO checkmark */
@@ -392,6 +394,8 @@
     object-fit: contain !important;
     margin-bottom: 1.5mm !important;
     flex-shrink: 0 !important;
+    image-rendering: -webkit-optimize-contrast !important;
+    image-rendering: crisp-edges !important;
   }
 
   .rx-vco-row {
