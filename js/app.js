@@ -373,6 +373,10 @@ async function loadPatientBySerial(serialNo) {
     _currentPatientVisits = await HMC_DB.getPatientVisits(rec.mrNumber);
     const totalV = _currentPatientVisits.length;
     showToast(`Loaded: ${rec.name} (${rec.mrNumber}) — Visit #${rec.visitNo} of ${totalV}`, 'success');
+    if (typeof switchMobileView === 'function' && window.innerWidth <= 880) {
+      switchMobileView('form');
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
   }
 }
 
@@ -679,6 +683,10 @@ function toggleTemplatesPanel() {
   if (btn) {
     btn.innerHTML = isOpen ? '✕ Close Templates' : '⚡ Clinical Templates';
   }
+  const pillBtn = document.getElementById('mpill-templates');
+  if (pillBtn) {
+    pillBtn.classList.toggle('active', isOpen);
+  }
 }
 
 function tplPanelMouseEnter() {
@@ -824,6 +832,12 @@ function insertTemplateText(tplId) {
     }
   }
   showToast(`Inserted into ${target.previousElementSibling ? target.previousElementSibling.innerText : 'field'}: ${tpl.name}`, 'info');
+  if (window.innerWidth <= 880 && typeof toggleTemplatesPanel === 'function') {
+    const container = document.querySelector('.app-container');
+    if (container && container.classList.contains('templates-open')) {
+      toggleTemplatesPanel();
+    }
+  }
 }
 
 function copyTemplateText(tplId, event) {
@@ -1913,12 +1927,21 @@ function switchMobileView(view) {
   const workspace = document.querySelector('.workspace');
   const btnForm = document.getElementById('mpill-form');
   const btnSearch = document.getElementById('mpill-search');
+  const btnTpl = document.getElementById('mpill-templates');
+  const appContainer = document.querySelector('.app-container');
+
+  // If templates bottom sheet was open, close it
+  if (appContainer && appContainer.classList.contains('templates-open')) {
+    appContainer.classList.remove('templates-open');
+    if (btnTpl) btnTpl.classList.remove('active');
+  }
 
   if (view === 'search') {
     if (sidebar) sidebar.classList.add('mobile-visible');
     if (workspace) workspace.classList.add('mobile-hidden');
     if (btnSearch) btnSearch.classList.add('active');
     if (btnForm) btnForm.classList.remove('active');
+    if (btnTpl) btnTpl.classList.remove('active');
     const searchInp = document.getElementById('sidebar-search-input');
     if (searchInp) setTimeout(() => searchInp.focus(), 150);
   } else {
@@ -1926,6 +1949,7 @@ function switchMobileView(view) {
     if (workspace) workspace.classList.remove('mobile-hidden');
     if (btnForm) btnForm.classList.add('active');
     if (btnSearch) btnSearch.classList.remove('active');
+    if (btnTpl) btnTpl.classList.remove('active');
   }
 }
 
