@@ -330,153 +330,152 @@ async function getVisitBySerial(serialNo) {
   });
 }
 
+async function getAllFromStore(db, storeName) {
+  if (!db || !db.objectStoreNames || !db.objectStoreNames.contains(storeName)) return [];
+  return new Promise((resolve) => {
+    try {
+      const tx = db.transaction(storeName, 'readonly');
+      const store = tx.objectStore(storeName);
+      const req = store.getAll();
+      req.onsuccess = () => resolve(req.result || []);
+      req.onerror = () => resolve([]);
+    } catch (e) {
+      resolve([]);
+    }
+  });
+}
+
 async function searchPatients(query) {
-  const q = (query || '').trim().toLowerCase();
+  const q = String(query || '').trim().toLowerCase();
   const db = await initDB();
 
-  return new Promise((resolve) => {
-    // Dynamically check which stores exist in this database
-    const availableStores = ['visits', 'patients', 'admissions'].filter(s => db.objectStoreNames.contains(s));
-    if (availableStores.length === 0) {
-      return resolve([]);
-    }
+  try {
+    const [allVisits, allPatients, allAdmissions] = await Promise.all([
+      getAllFromStore(db, 'visits'),
+      getAllFromStore(db, 'patients'),
+      getAllFromStore(db, 'admissions')
+    ]);
 
-    let tx;
-    try {
-      tx = db.transaction(availableStores, 'readonly');
-    } catch (txErr) {
-      console.warn('searchPatients transaction error:', txErr);
-      return resolve([]);
-    }
+    const map = new Map();
+    const cleanQ = q.replace(/[\s\-_]/g, '');
 
-    let allVisits = [];
-    let allPatients = [];
-    let allAdmissions = [];
-    let pending = availableStores.length;
+    const matches = (obj) => {
+      if (!obj) return false;
+      if (!q) return true;
 
-    const checkComplete = () => {
-      pending--;
-      if (pending > 0) return;
+      const name = String(obj.name || obj.patientName || '').toLowerCase();
+      const mr = String(obj.mrNumber || '').toLowerCase();
+      const ph = String(obj.phone || '').toLowerCase();
+      const addr = String(obj.address || '').toLowerCase();
+      const cnic = String(obj.cnic || '').toLowerCase();
+      const ward = String(obj.ward || '').toLowerCase();
+      const admId = String(obj.admissionId || '').toLowerCase();
 
-      const map = new Map();
-      const cleanQ = q.replace(/[\s\-_]/g, '');
+      const cleanPh = ph.replace(/[\s\-_]/g, '');
+      const cleanMr = mr.replace(/[\s\-_]/g, '');
+      const cleanAdm = admId.replace(/[\s\-_]/g, '');
 
-      // Helper matcher
-      const matches = (obj) => {
-        if (!q) return true; // Empty query returns all/recent patients
-        const name = (obj.name || obj.patientName || '').toLowerCase();
-        const mr = (obj.mrNumber || '').toLowerCase();
-        const ph = (obj.phone || '').toLowerCase();
-        const addr = (obj.address || '').toLowerCase();
-        const cnic = (obj.cnic || '').toLowerCase();
-        const ward = (obj.ward || '').toLowerCase();
-        const admId = (obj.admissionId || '').toLowerCase();
+      return name.includes(q) || 
+             mr.includes(q) || 
+             (cleanQ && cleanMr.includes(cleanQ)) || 
+             ph.includes(q) || 
+             (cleanQ && cleanPh.includes(cleanQ)) || 
+             addr.includes(q) || 
+             cnic.includes(q) || 
+             ward.includes(q) || 
+             admId.includes(q) ||
+             (cleanQ && cleanAdm.includes(cleanQ));
+    };
 
-        const cleanPh = ph.replace(/[\s\-_]/g, '');
-        const cleanMr = mr.replace(/[\s\-_]/g, '');
-        const cleanAdm = admId.replace(/[\s\-_]/g, '');
-
-        return name.includes(q) || 
-               mr.includes(q) || 
-               cleanMr.includes(cleanQ) || 
-               ph.includes(q) || 
-               cleanPh.includes(cleanQ) || 
-               addr.includes(q) || 
-               cnic.includes(q) || 
-               ward.includes(q) || 
-               admId.includes(q) ||
-               cleanAdm.includes(cleanQ);
-      };
-
-      // 1. Visits store
-      allVisits.forEach(v => {
+    // 1. Process visits
+    allVisits.forEach(v => {
+      try {
         if (matches(v)) {
-          const key = v.mrNumber || v.name;
-          if (!map.has(key) || (v.visitNo > (map.get(key).visitNo || 0))) {
-            map.set(key, Object.assign({}, v));
-          }
-        }
-      });
-
-      // 2. Patients store
-      allPatients.forEach(p => {
-        if (matches(p)) {
-          const key = p.mrNumber || p.name;
-          if (!map.has(key)) {
-            map.set(key, Object.assign({}, p));
-          } else {
-            const ex = map.get(key);
-            ex.name = ex.name || p.name;
-            ex.parentage = ex.parentage || p.parentage;
-            ex.relation = ex.relation || p.relation;
-            ex.age = ex.age || p.age;
-            ex.gender = ex.gender || p.gender;
-            ex.phone = ex.phone || p.phone;
-            ex.address = ex.address || p.address;
-            ex.cnic = ex.cnic || p.cnic;
-          }
-        }
-      });
-
-      // 3. Admissions store
-      allAdmissions.forEach(a => {
-        if (matches(a)) {
-          const key = a.mrNumber || a.patientName;
-          if (!map.has(key)) {
-            map.set(key, {
-              mrNumber: a.mrNumber,
-              name: a.patientName,
-              parentage: a.parentage,
-              relation: a.relation,
-              age: a.age,
-              gender: a.gender,
-              phone: a.phone,
-              address: a.address,
-              cnic: a.cnic,
-              ward: a.ward,
-              bedNumber: a.bedNumber,
-              diagnosis: a.admittingDiagnosis,
-              latestAdmission: a,
-              isActiveInpatient: a.status !== 'Discharged'
-            });
-          } else {
-            const ex = map.get(key);
-            ex.latestAdmission = a;
-            ex.ward = a.ward || ex.ward;
-            ex.bedNumber = a.bedNumber || ex.bedNumber;
-            if (a.status !== 'Discharged') {
-              ex.isActiveInpatient = true;
+          const key = String(v.mrNumber || v.name || '').trim();
+          if (key) {
+            const vNo = Number(v.visitNo || 0);
+            const curNo = map.has(key) ? Number(map.get(key).visitNo || 0) : -1;
+            if (!map.has(key) || vNo > curNo) {
+              map.set(key, Object.assign({}, v));
             }
           }
         }
-      });
+      } catch (err) {}
+    });
 
-      const list = Array.from(map.values());
-      list.sort((a, b) => {
-        if (a.isActiveInpatient && !b.isActiveInpatient) return -1;
-        if (!a.isActiveInpatient && b.isActiveInpatient) return 1;
-        return (b.serialNo || 0) - (a.serialNo || 0);
-      });
+    // 2. Process patients store
+    allPatients.forEach(p => {
+      try {
+        if (matches(p)) {
+          const key = String(p.mrNumber || p.name || '').trim();
+          if (key) {
+            if (!map.has(key)) {
+              map.set(key, Object.assign({}, p));
+            } else {
+              const ex = map.get(key);
+              ex.name = ex.name || p.name;
+              ex.parentage = ex.parentage || p.parentage;
+              ex.relation = ex.relation || p.relation;
+              ex.age = ex.age || p.age;
+              ex.gender = ex.gender || p.gender;
+              ex.phone = ex.phone || p.phone;
+              ex.address = ex.address || p.address;
+              ex.cnic = ex.cnic || p.cnic;
+            }
+          }
+        }
+      } catch (err) {}
+    });
 
-      resolve(list.slice(0, 30));
-    };
+    // 3. Process admissions store
+    allAdmissions.forEach(a => {
+      try {
+        if (matches(a)) {
+          const key = String(a.mrNumber || a.patientName || '').trim();
+          if (key) {
+            if (!map.has(key)) {
+              map.set(key, {
+                mrNumber: a.mrNumber,
+                name: a.patientName,
+                parentage: a.parentage,
+                relation: a.relation,
+                age: a.age,
+                gender: a.gender,
+                phone: a.phone,
+                address: a.address,
+                cnic: a.cnic,
+                ward: a.ward,
+                bedNumber: a.bedNumber,
+                diagnosis: a.admittingDiagnosis,
+                latestAdmission: a,
+                isActiveInpatient: a.status !== 'Discharged'
+              });
+            } else {
+              const ex = map.get(key);
+              ex.latestAdmission = a;
+              ex.ward = a.ward || ex.ward;
+              ex.bedNumber = a.bedNumber || ex.bedNumber;
+              if (a.status !== 'Discharged') {
+                ex.isActiveInpatient = true;
+              }
+            }
+          }
+        }
+      } catch (err) {}
+    });
 
-    if (availableStores.includes('visits')) {
-      const vReq = tx.objectStore('visits').getAll();
-      vReq.onsuccess = () => { allVisits = vReq.result || []; checkComplete(); };
-      vReq.onerror = () => checkComplete();
-    }
-    if (availableStores.includes('patients')) {
-      const pReq = tx.objectStore('patients').getAll();
-      pReq.onsuccess = () => { allPatients = pReq.result || []; checkComplete(); };
-      pReq.onerror = () => checkComplete();
-    }
-    if (availableStores.includes('admissions')) {
-      const aReq = tx.objectStore('admissions').getAll();
-      aReq.onsuccess = () => { allAdmissions = aReq.result || []; checkComplete(); };
-      aReq.onerror = () => checkComplete();
-    }
-  });
+    const list = Array.from(map.values());
+    list.sort((a, b) => {
+      if (a.isActiveInpatient && !b.isActiveInpatient) return -1;
+      if (!a.isActiveInpatient && b.isActiveInpatient) return 1;
+      return (Number(b.serialNo || 0)) - (Number(a.serialNo || 0));
+    });
+
+    return list.slice(0, 30);
+  } catch (outerErr) {
+    console.error('searchPatients outer error:', outerErr);
+    return [];
+  }
 }
 
 async function getDashboardStats() {
