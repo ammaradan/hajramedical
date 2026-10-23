@@ -1785,6 +1785,159 @@ body {
   border-color: var(--navy);
 }
 
+/* ── IPD PATIENT LIVE SEARCH & DROPDOWN ──────────────────────── */
+.ipd-search-bar-container {
+  position: relative;
+  margin-bottom: 18px;
+  background: #ffffff;
+  border: 1.5px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 12px 16px;
+  box-shadow: 0 4px 14px rgba(13, 43, 69, 0.06);
+}
+
+.ipd-search-input-wrap {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.ipd-search-input-wrap .search-icon {
+  position: absolute;
+  left: 14px;
+  font-size: 16px;
+  color: var(--text-light);
+  pointer-events: none;
+}
+
+.ipd-search-input {
+  width: 100%;
+  padding: 12px 40px 12px 42px !important;
+  font-size: 14px !important;
+  font-weight: 600;
+  border: 2px solid var(--border-dark) !important;
+  border-radius: 10px !important;
+  background: #f8fafc !important;
+  transition: all 0.2s ease;
+  color: var(--navy) !important;
+}
+
+.ipd-search-input:focus {
+  background: #ffffff !important;
+  border-color: var(--teal) !important;
+  box-shadow: 0 0 0 4px rgba(0, 168, 150, 0.15) !important;
+}
+
+.ipd-search-clear-btn {
+  position: absolute;
+  right: 12px;
+  background: none;
+  border: none;
+  font-size: 16px;
+  color: var(--text-light);
+  cursor: pointer;
+  padding: 4px;
+}
+
+.ipd-search-clear-btn:hover {
+  color: var(--red);
+}
+
+.ipd-search-dropdown {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  right: 0;
+  background: #ffffff;
+  border: 1.5px solid var(--border-dark);
+  border-radius: 12px;
+  box-shadow: 0 12px 36px rgba(13, 43, 69, 0.2);
+  max-height: 380px;
+  overflow-y: auto;
+  z-index: 1050;
+  padding: 6px;
+}
+
+.ipd-search-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 14px;
+  border-radius: 8px;
+  cursor: pointer;
+  border-bottom: 1px solid #f1f5f9;
+  transition: all 0.15s ease;
+}
+
+.ipd-search-item:last-child {
+  border-bottom: none;
+}
+
+.ipd-search-item:hover, .ipd-search-item.highlighted {
+  background: #f0fdf4;
+  border-color: #bbf7d0;
+  transform: translateX(2px);
+}
+
+.ipd-search-item.admitted {
+  border-left: 4px solid #10B981;
+}
+
+.ipd-search-item.opd {
+  border-left: 4px solid #3B82F6;
+}
+
+.ipd-item-main {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.ipd-item-name {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--navy);
+}
+
+.ipd-item-meta {
+  font-size: 12px;
+  color: var(--text-muted);
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.ipd-patient-active-strip {
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 10px;
+  font-size: 12.5px;
+}
+
+.ipd-active-patient-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: #f1f5f9;
+  padding: 6px 14px;
+  border-radius: 20px;
+  border: 1px solid var(--border);
+  font-weight: 700;
+  color: var(--navy);
+}
+
+.ipd-active-patient-pill.has-patient {
+  background: #ecfdf5;
+  border-color: #a7f3d0;
+  color: #065f46;
+}
+
 /* IPD Panes */
 .ipd-pane {
   display: none;

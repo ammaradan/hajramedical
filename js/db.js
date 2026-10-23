@@ -336,21 +336,29 @@ async function searchPatients(query) {
   const db = await initDB();
 
   return new Promise((resolve) => {
-    const tx = db.transaction('visits', 'readonly');
-    const store = tx.objectStore('visits');
-    const req = store.getAll();
+    // Open visits, patients, and admissions stores
+    const tx = db.transaction(['visits', 'patients', 'admissions'], 'readonly');
+    const vStore = tx.objectStore('visits');
+    const pStore = tx.objectStore('patients');
+    const aStore = tx.objectStore('admissions');
 
-    req.onsuccess = () => {
-      const all = req.result || [];
+    const vReq = vStore.getAll();
+    const pReq = pStore.getAll();
+    const aReq = aStore.getAll();
+
+    let doneCount = 0;
+    let allVisits = [];
+    let allPatients = [];
+    let allAdmissions = [];
+
+    const processAll = () => {
+      doneCount++;
+      if (doneCount < 3) return;
+
       const map = new Map();
 
-      const visitCounts = {};
-      all.forEach(v => {
-        visitCounts[v.mrNumber] = (visitCounts[v.mrNumber] || 0) + 1;
-      });
-
-      // Search across visits and deduplicate by MR (picking latest visit)
-      all.forEach(v => {
+      // 1. Process visits
+      allVisits.forEach(v => {
         const name = (v.name || '').toLowerCase();
         const mr = (v.mrNumber || '').toLowerCase();
         const ph = (v.phone || '').toLowerCase();
@@ -358,18 +366,93 @@ async function searchPatients(query) {
         const cnic = (v.cnic || '').toLowerCase();
 
         if (name.includes(q) || mr.includes(q) || ph.includes(q) || addr.includes(q) || cnic.includes(q)) {
-          if (!map.has(v.mrNumber) || (v.visitNo > (map.get(v.mrNumber).visitNo || 0))) {
-            const item = Object.assign({}, v, { totalVisits: visitCounts[v.mrNumber] || 1 });
-            map.set(v.mrNumber, item);
+          const key = v.mrNumber || v.name;
+          if (!map.has(key) || (v.visitNo > (map.get(key).visitNo || 0))) {
+            map.set(key, Object.assign({}, v));
+          }
+        }
+      });
+
+      // 2. Process patients store
+      allPatients.forEach(p => {
+        const name = (p.name || '').toLowerCase();
+        const mr = (p.mrNumber || '').toLowerCase();
+        const ph = (p.phone || '').toLowerCase();
+        const addr = (p.address || '').toLowerCase();
+        const cnic = (p.cnic || '').toLowerCase();
+
+        if (name.includes(q) || mr.includes(q) || ph.includes(q) || addr.includes(q) || cnic.includes(q)) {
+          const key = p.mrNumber || p.name;
+          if (!map.has(key)) {
+            map.set(key, Object.assign({}, p));
+          } else {
+            // Merge demographic fields if missing
+            const ex = map.get(key);
+            ex.name = ex.name || p.name;
+            ex.parentage = ex.parentage || p.parentage;
+            ex.relation = ex.relation || p.relation;
+            ex.age = ex.age || p.age;
+            ex.gender = ex.gender || p.gender;
+            ex.phone = ex.phone || p.phone;
+            ex.address = ex.address || p.address;
+            ex.cnic = ex.cnic || p.cnic;
+          }
+        }
+      });
+
+      // 3. Process admissions store (tag active admissions)
+      allAdmissions.forEach(a => {
+        const name = (a.patientName || '').toLowerCase();
+        const mr = (a.mrNumber || '').toLowerCase();
+        const ph = (a.phone || '').toLowerCase();
+        const ward = (a.ward || '').toLowerCase();
+        const admId = (a.admissionId || '').toLowerCase();
+
+        if (name.includes(q) || mr.includes(q) || ph.includes(q) || ward.includes(q) || admId.includes(q)) {
+          const key = a.mrNumber || a.patientName;
+          if (!map.has(key)) {
+            map.set(key, {
+              mrNumber: a.mrNumber,
+              name: a.patientName,
+              parentage: a.parentage,
+              relation: a.relation,
+              age: a.age,
+              gender: a.gender,
+              phone: a.phone,
+              address: a.address,
+              cnic: a.cnic,
+              diagnosis: a.admittingDiagnosis,
+              latestAdmission: a,
+              isActiveInpatient: a.status !== 'Discharged'
+            });
+          } else {
+            const ex = map.get(key);
+            ex.latestAdmission = a;
+            if (a.status !== 'Discharged') {
+              ex.isActiveInpatient = true;
+            }
           }
         }
       });
 
       const list = Array.from(map.values());
-      list.sort((a, b) => (b.serialNo || 0) - (a.serialNo || 0));
+      list.sort((a, b) => {
+        // Prioritize active inpatients first, then newest
+        if (a.isActiveInpatient && !b.isActiveInpatient) return -1;
+        if (!a.isActiveInpatient && b.isActiveInpatient) return 1;
+        return (b.serialNo || 0) - (a.serialNo || 0);
+      });
       resolve(list);
     };
-    req.onerror = () => resolve([]);
+
+    vReq.onsuccess = () => { allVisits = vReq.result || []; processAll(); };
+    vReq.onerror = () => processAll();
+
+    pReq.onsuccess = () => { allPatients = pReq.result || []; processAll(); };
+    pReq.onerror = () => processAll();
+
+    aReq.onsuccess = () => { allAdmissions = aReq.result || []; processAll(); };
+    aReq.onerror = () => processAll();
   });
 }
 
@@ -876,10 +959,14 @@ async function importFullDatabase(importData) {
     const tx = db.transaction(stores, 'readwrite');
 
     stores.forEach(sName => {
-      const store = tx.objectStore(sName);
-      store.clear(); // Clear existing to prevent conflicts
-      const items = importData.data[sName] || [];
-      items.forEach(item => store.put(item));
+      const items = importData.data[sName];
+      // CRITICAL: Only clear and import if items for this store were explicitly provided as an array.
+      // If a remote cloud payload does not contain a particular store (e.g. admissions), NEVER wipe it out!
+      if (Array.isArray(items)) {
+        const store = tx.objectStore(sName);
+        store.clear();
+        items.forEach(item => store.put(item));
+      }
     });
 
     tx.oncomplete = () => resolve({ success: true, message: 'Database imported successfully.' });

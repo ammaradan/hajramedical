@@ -114,6 +114,10 @@ function handleRequest(e) {
         syncAppointmentsSheet(ss, merged.appointments);
       }
 
+      if (merged.admissions && merged.admissions.length > 0) {
+        syncInpatientAdmissionsSheet(ss, merged.admissions);
+      }
+
       // Store complete JSON state in a backup tab so mobile/PC sync never loses rich data
       storeFullState(ss, merged);
 
@@ -414,7 +418,8 @@ function mergeDatabaseStates(existing, incoming) {
     visits: mergeVisitsList(existing.visits, incoming.visits),
     payments: mergeListByKey(existing.payments, incoming.payments, 'id'),
     appointments: mergeListByKey(existing.appointments, incoming.appointments, 'id'),
-    templates: mergeListByKey(existing.templates, incoming.templates, 'id')
+    templates: mergeListByKey(existing.templates, incoming.templates, 'id'),
+    admissions: mergeListByKey(existing.admissions, incoming.admissions, 'admissionId')
   };
 }
 
@@ -498,6 +503,49 @@ function getOrCreateSheet(ss, name, headers, headerColor) {
     sheet.setFrozenRows(1);
   }
   return sheet;
+}
+
+function syncInpatientAdmissionsSheet(ss, admissions) {
+  var headers = [
+    'Admission ID', 'MR Number', 'Patient Name', 'Age / Gender', 'Ward & Bed',
+    'Admission Date', 'Discharge Date', 'Status', 'Diagnosis', 'Surgery / Procedure',
+    'Surgeon', 'Total Bill (PKR)', 'Net Payable (PKR)', 'Phone', 'Address'
+  ];
+  var sheet = getOrCreateSheet(ss, 'Inpatient Admissions', headers, '#0D2B45');
+  var existingLastRow = sheet.getLastRow();
+  if (existingLastRow > 1) {
+    sheet.getRange(2, 1, existingLastRow - 1, headers.length).clearContent();
+  }
+
+  if (!admissions || admissions.length === 0) return;
+
+  var rows = admissions.map(function(a) {
+    var surg = (a.surgery && a.surgery.procedure) ? a.surgery.procedure : '—';
+    var surgDoc = (a.surgery && a.surgery.surgeon) ? a.surgery.surgeon : (a.consultant || '—');
+    var gross = (a.billing && a.billing.grossTotal) ? a.billing.grossTotal : 0;
+    var net = (a.billing && a.billing.netPayable) ? a.billing.netPayable : 0;
+    var disDate = (a.discharge && a.discharge.dischargeDate) ? a.discharge.dischargeDate : '—';
+
+    return [
+      a.admissionId || '',
+      a.mrNumber || '',
+      a.patientName || '',
+      (a.age ? a.age + 'y ' : '') + (a.gender || ''),
+      (a.ward || '') + ' - ' + (a.bedNumber || ''),
+      a.admissionDate || '',
+      disDate,
+      a.status || 'Admitted',
+      stripHtmlToPlainText(a.admittingDiagnosis || ''),
+      surg,
+      surgDoc,
+      gross,
+      net,
+      a.phone || '',
+      a.address || ''
+    ];
+  });
+
+  sheet.getRange(2, 1, rows.length, headers.length).setValues(rows);
 }
 
 /**

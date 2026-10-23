@@ -14,6 +14,7 @@ function initIPD() {
   setupIPDAutoDates();
   setupMRAutoLookup();
   setupBillingAutoCalc();
+  setupIPDSearchCloseHandler();
 }
 
 function setupIPDAutoDates() {
@@ -122,18 +123,169 @@ function setupMRAutoLookup() {
   if (!mrInput) return;
 
   mrInput.addEventListener('change', () => lookupPatientForAdmission(mrInput.value.trim()));
-  mrInput.addEventListener('blur', () => lookupPatientForAdmission(mrInput.value.trim()));
+}
+
+// ── IPD PATIENT LIVE SEARCH & AUTO-SELECT ───────────────────────────
+let _ipdSearchTimer = null;
+
+function handleIPDPatientSearch(query) {
+  const dropdown = document.getElementById('ipd-search-dropdown');
+  const clearBtn = document.getElementById('btn-ipd-clear-search');
+  if (!dropdown) return;
+
+  const q = (query || '').trim();
+  if (clearBtn) clearBtn.style.display = q ? 'block' : 'none';
+
+  if (!q) {
+    dropdown.style.display = 'none';
+    dropdown.innerHTML = '';
+    return;
+  }
+
+  clearTimeout(_ipdSearchTimer);
+  _ipdSearchTimer = setTimeout(async () => {
+    try {
+      const results = await HMC_DB.searchPatients(q);
+      renderIPDSearchDropdown(results, q);
+    } catch (err) {
+      console.error('IPD Search error:', err);
+    }
+  }, 160);
+}
+
+function clearIPDPatientSearch() {
+  const inp = document.getElementById('ipd-global-search');
+  if (inp) inp.value = '';
+  const dropdown = document.getElementById('ipd-search-dropdown');
+  if (dropdown) {
+    dropdown.style.display = 'none';
+    dropdown.innerHTML = '';
+  }
+  const clearBtn = document.getElementById('btn-ipd-clear-search');
+  if (clearBtn) clearBtn.style.display = 'none';
+}
+
+function renderIPDSearchDropdown(results, query) {
+  const dropdown = document.getElementById('ipd-search-dropdown');
+  if (!dropdown) return;
+
+  if (!results || results.length === 0) {
+    dropdown.innerHTML = `
+      <div style="padding:14px;text-align:center;color:var(--text-light);font-size:13px;">
+        No patients found matching "<strong>${escapeHtml(query)}</strong>".
+        <div style="margin-top:8px;">
+          <button type="button" class="btn btn-sm btn-save" onclick="startNewPatientFromSearch('${escapeHtml(query)}')">
+            ➕ Register "${escapeHtml(query)}" as New Patient
+          </button>
+        </div>
+      </div>`;
+    dropdown.style.display = 'block';
+    return;
+  }
+
+  let html = '';
+  results.slice(0, 15).forEach((p, idx) => {
+    const isAdmitted = p.isActiveInpatient || (p.latestAdmission && p.latestAdmission.status !== 'Discharged');
+    const badgeHtml = isAdmitted
+      ? `<span class="ipd-badge active" style="font-size:10px;">🟢 Admitted (${escapeHtml(p.latestAdmission.ward || 'Ward')})</span>`
+      : `<span class="ipd-badge" style="background:#e0f2fe;color:#0369a1;font-size:10px;">🩺 OPD Patient</span>`;
+
+    const metaParts = [];
+    if (p.mrNumber) metaParts.push(`<strong>${escapeHtml(p.mrNumber)}</strong>`);
+    if (p.age) metaParts.push(`${escapeHtml(p.age)}y`);
+    if (p.gender) metaParts.push(`${escapeHtml(p.gender)}`);
+    if (p.parentage) metaParts.push(`${escapeHtml(p.relation || 'S/O')} ${escapeHtml(p.parentage)}`);
+    if (p.phone) metaParts.push(`📞 ${escapeHtml(p.phone)}`);
+    if (p.address) metaParts.push(`📍 ${escapeHtml(p.address.slice(0, 25))}`);
+
+    html += `
+      <div class="ipd-search-item ${isAdmitted ? 'admitted' : 'opd'}" onclick="selectPatientForIPD(${idx})">
+        <div class="ipd-item-main">
+          <div class="ipd-item-name">${highlightMatch(p.name || 'Unnamed', query)}</div>
+          <div class="ipd-item-meta">${metaParts.join(' &nbsp;•&nbsp; ')}</div>
+        </div>
+        <div class="ipd-item-badges">
+          ${badgeHtml}
+          <span style="font-size:11.5px;color:var(--teal);font-weight:700;">Select ➔</span>
+        </div>
+      </div>`;
+  });
+
+  dropdown.innerHTML = html;
+  dropdown.style.display = 'block';
+  window._lastIPDSearchResults = results;
+}
+
+function selectPatientForIPD(index) {
+  const results = window._lastIPDSearchResults;
+  if (!results || !results[index]) return;
+  const p = results[index];
+
+  clearIPDPatientSearch();
+  populateIPDDemographics(p);
+
+  // If patient already has an active admission, load it!
+  if (p.latestAdmission && p.latestAdmission.admissionId) {
+    loadAdmissionRecord(p.latestAdmission.admissionId);
+    showToast(`Loaded Active Inpatient: ${p.name} (${p.latestAdmission.admissionId})`, 'success');
+  } else {
+    // New admission for this patient
+    setVal('ipd-record-id', '');
+    setVal('ipd-record-status', 'Admitted');
+    setupIPDAutoDates();
+    updateActivePatientStrip({
+      patientName: p.name,
+      mrNumber: p.mrNumber,
+      status: 'Ready for Admission',
+      ward: getVal('ipd-adm-ward') || 'General Ward'
+    });
+    showToast(`Selected Patient: ${p.name} (MR# ${p.mrNumber}). Ready for Ward Admission.`, 'info');
+  }
+}
+
+function startNewPatientFromSearch(nameQuery) {
+  clearIPDPatientSearch();
+  resetIPDForm();
+  setVal('ipd-patient-name', nameQuery || '');
+  document.getElementById('ipd-patient-name')?.focus();
+  showToast(`Enter details for new patient: ${nameQuery}`, 'info');
+}
+
+function updateActivePatientStrip(record) {
+  const display = document.getElementById('ipd-pill-patient-display');
+  const pill = document.getElementById('ipd-active-patient-pill');
+  if (!display || !pill) return;
+
+  if (record && record.patientName) {
+    const wardBed = record.ward ? `${record.ward} (${record.bedNumber || 'Bed #1'})` : 'Ward pending';
+    const admId = record.admissionId ? `[${record.admissionId}]` : '';
+    display.textContent = `${record.patientName} (${record.mrNumber || 'MR-Pending'}) • ${wardBed} ${admId}`;
+    pill.classList.add('has-patient');
+  } else {
+    display.textContent = 'No Patient Selected (New Entry)';
+    pill.classList.remove('has-patient');
+  }
+}
+
+function setupIPDSearchCloseHandler() {
+  document.addEventListener('click', (e) => {
+    const wrap = document.getElementById('ipd-search-box-wrap');
+    const dropdown = document.getElementById('ipd-search-dropdown');
+    if (dropdown && wrap && !wrap.contains(e.target)) {
+      dropdown.style.display = 'none';
+    }
+  });
 }
 
 async function lookupPatientForAdmission(mr) {
   if (!mr) return;
   const visits = await HMC_DB.getPatientVisits(mr);
   if (visits && visits.length > 0) {
-    const p = visits[0]; // Most recent visit has latest demographics
+    const p = visits[0];
     populateIPDDemographics(p);
+    updateActivePatientStrip({ patientName: p.name, mrNumber: mr, ward: getVal('ipd-adm-ward') });
     showToast(`Patient loaded from MR# ${mr}: ${p.name}`, 'info');
   } else {
-    // If not found in visits, check patients store
     const db = await HMC_DB.initDB();
     const tx = db.transaction(['patients'], 'readonly');
     const store = tx.objectStore('patients');
@@ -141,6 +293,7 @@ async function lookupPatientForAdmission(mr) {
     req.onsuccess = () => {
       if (req.result) {
         populateIPDDemographics(req.result);
+        updateActivePatientStrip({ patientName: req.result.name, mrNumber: mr, ward: getVal('ipd-adm-ward') });
         showToast(`Patient record found for MR# ${mr}`, 'info');
       }
     };
@@ -149,6 +302,7 @@ async function lookupPatientForAdmission(mr) {
 
 function populateIPDDemographics(p) {
   if (!p) return;
+  setVal('ipd-patient-mr', p.mrNumber || '');
   setVal('ipd-patient-name', p.name || '');
   setVal('ipd-patient-parent', p.parentage || '');
   setVal('ipd-patient-relation', p.relation || 'S/O');
@@ -398,7 +552,30 @@ async function saveIPDRecord(targetStatus) {
     _currentAdmission = record;
     setVal('ipd-record-id', record.admissionId);
     setVal('ipd-record-status', record.status);
+
+    // CRITICAL: Also save/update patient in patients store so patient profile is preserved forever
+    try {
+      const db = await HMC_DB.initDB();
+      const pTx = db.transaction(['patients'], 'readwrite');
+      const pStore = pTx.objectStore('patients');
+      pStore.put({
+        mrNumber: mr,
+        name: pName,
+        parentage: getVal('ipd-patient-parent'),
+        relation: getVal('ipd-patient-relation') || 'S/O',
+        age: getVal('ipd-patient-age'),
+        gender: getVal('ipd-patient-gender') || 'Male',
+        phone: getVal('ipd-patient-phone'),
+        cnic: getVal('ipd-patient-cnic'),
+        address: getVal('ipd-patient-address'),
+        emergencyContact: getVal('ipd-patient-emergency'),
+        updatedAt: new Date().toISOString()
+      });
+    } catch (profileErr) {
+      console.warn('Patient profile store notice:', profileErr);
+    }
     
+    updateActivePatientStrip(record);
     showToast(`IPD Record Saved: ${record.admissionId} — ${pName}`, 'success');
     updateIPDActiveCount();
     renderActiveAdmissionsTable();
@@ -520,6 +697,7 @@ async function loadAdmissionRecord(admId) {
   calculateIPDBill();
   syncConsentFields();
   syncCertificateFields();
+  updateActivePatientStrip(rec);
 
   showToast(`Loaded Admission: ${rec.admissionId} (${rec.patientName})`, 'success');
   switchIPDTab('admission');
@@ -537,6 +715,8 @@ function resetIPDForm() {
   setVal('ipd-stay-days', '1');
   setVal('ipd-bill-days', '1');
   calculateIPDBill();
+  updateActivePatientStrip(null);
+  clearIPDPatientSearch();
   switchIPDTab('admission');
   showToast('IPD Form cleared for new admission.', 'info');
 }
@@ -1285,7 +1465,27 @@ function setTxt(id, val) {
   if (el) el.textContent = val || '';
 }
 
+function highlightMatch(text, query) {
+  if (!text) return '';
+  if (!query) return escapeHtml(text);
+  const escapedText = escapeHtml(text);
+  const cleanQ = query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const regex = new RegExp(`(${cleanQ})`, 'gi');
+  return escapedText.replace(regex, '<span style="background:#fef08a;color:#854d0e;padding:0 2px;border-radius:3px;">$1</span>');
+}
+
+function escapeHtml(str) {
+  if (!str) return '';
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
 // Auto-boot IPD when DOM is ready
 document.addEventListener('DOMContentLoaded', () => {
   setTimeout(() => initIPD(), 300);
 });
+
