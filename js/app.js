@@ -737,34 +737,60 @@ function renderTemplatesList() {
   }
 
   if (filtered.length === 0) {
-    listContainer.innerHTML = '<div style="font-size:12px;color:var(--text-light);text-align:center;padding:16px 0;">No templates match</div>';
+    listContainer.innerHTML = `
+      <div style="font-size:12px;color:var(--text-light);text-align:center;padding:24px 12px;">
+        <div>No templates found in this category.</div>
+        <button type="button" class="btn btn-save" style="margin-top:10px;font-size:12px;padding:6px 14px;" onclick="openAddTemplateModal()">
+          <span>➕</span> Create New Template
+        </button>
+      </div>
+    `;
     return;
   }
 
-  listContainer.innerHTML = filtered.map(t => `
-    <div class="tpl-item-card" onclick="insertTemplateText('${t.id}')">
-      <div class="tpl-item-header">
-        <div class="tpl-item-title">${escapeHtml(t.name)}</div>
-        <div class="tpl-card-actions" onclick="event.stopPropagation()">
-          <button type="button" class="tpl-action-btn" title="Paste / Insert into Form" onclick="insertTemplateText('${t.id}')">📥</button>
-          <button type="button" class="tpl-action-btn" title="Copy to Clipboard" onclick="copyTemplateText('${t.id}', event)">📋</button>
-          <button type="button" class="tpl-action-btn" title="Edit Template" onclick="editTemplate('${t.id}', event)">✏️</button>
-          <button type="button" class="tpl-action-btn btn-del" title="Delete Template" onclick="deleteTemplateItem('${t.id}', event)">🗑️</button>
+  listContainer.innerHTML = filtered.map(t => {
+    const previewSnippet = stripHtmlToSnippet(t.body);
+    return `
+      <div class="tpl-item-card" onclick="insertTemplateText('${t.id}')">
+        <div class="tpl-item-header">
+          <div class="tpl-item-title">${escapeHtml(t.name)}</div>
+          <div class="tpl-card-actions" onclick="event.stopPropagation()">
+            <button type="button" class="tpl-action-btn" title="Paste / Insert into Form" onclick="insertTemplateText('${t.id}')">📥</button>
+            <button type="button" class="tpl-action-btn" title="Copy to Clipboard" onclick="copyTemplateText('${t.id}', event)">📋</button>
+            <button type="button" class="tpl-action-btn" title="Edit Template" onclick="editTemplate('${t.id}', event)">✏️</button>
+            <button type="button" class="tpl-action-btn btn-del" title="Delete Template" onclick="deleteTemplateItem('${t.id}', event)">🗑️</button>
+          </div>
         </div>
+        <div style="display:flex;align-items:center;gap:6px;margin-bottom:4px;">
+          <span class="tpl-item-badge">${escapeHtml(t.cat || 'General')}</span>
+        </div>
+        <div class="tpl-item-preview">${escapeHtml(previewSnippet)}</div>
       </div>
-      <div style="display:flex;align-items:center;gap:6px;margin-bottom:4px;">
-        <span class="tpl-item-badge">${escapeHtml(t.cat || 'General')}</span>
-      </div>
-      <div class="tpl-item-preview">${escapeHtml(t.body)}</div>
-    </div>
-  `).join('');
+    `;
+  }).join('');
+}
+
+function stripHtmlToSnippet(html) {
+  if (!html) return '';
+  let str = String(html)
+    .replace(/<li[^>]*>/gi, ' • ')
+    .replace(/<br\s*[\/]?>/gi, ' ')
+    .replace(/<\/(p|div|h[1-6])>/gi, ' ')
+    .replace(/<[^>]+>/g, '')
+    .replace(/&nbsp;/gi, ' ')
+    .replace(/&amp;/gi, '&')
+    .replace(/&lt;/gi, '<')
+    .replace(/&gt;/gi, '>')
+    .replace(/&quot;/gi, '"')
+    .replace(/&#39;/gi, "'");
+  return str.replace(/\s+/g, ' ').trim();
 }
 
 function insertTemplateText(tplId) {
   const tpl = _allTemplates.find(t => t.id === tplId);
   if (!tpl) return;
 
-  // Smart target resolution: if user has focused an editor, use it;
+  // Smart target resolution: if user focused an editor, use it;
   // otherwise, auto-target based on template category
   let target = _activeEditor;
   if (!target) {
@@ -776,14 +802,26 @@ function insertTemplateText(tplId) {
 
   target.focus();
   _activeEditor = target;
-  const textToInsert = tpl.body;
-  
-  // Clean multiline insert
-  if (document.queryCommandSupported('insertText')) {
-    const existing = target.innerText.trim();
-    document.execCommand('insertText', false, (existing ? '\n' : '') + textToInsert);
+  const content = (tpl.body || '').trim();
+
+  // If template has rich HTML formatting (bold, font size, bullets), preserve HTML intact!
+  const isHtml = /<[a-z][\s\S]*>/i.test(content);
+  if (isHtml) {
+    const existing = target.innerHTML.trim();
+    const needsSep = existing && existing !== '<br>' && !existing.endsWith('<br>') && !existing.endsWith('</p>') && !existing.endsWith('</li>');
+    const htmlToInsert = (needsSep ? '<br>' : '') + content;
+    if (document.queryCommandSupported('insertHTML')) {
+      document.execCommand('insertHTML', false, htmlToInsert);
+    } else {
+      target.innerHTML += htmlToInsert;
+    }
   } else {
-    target.innerHTML += (target.innerHTML.trim() ? '<br>' : '') + textToInsert.replace(/\n/g, '<br>');
+    const existing = target.innerText.trim();
+    if (document.queryCommandSupported('insertText')) {
+      document.execCommand('insertText', false, (existing ? '\n' : '') + content);
+    } else {
+      target.innerHTML += (target.innerHTML.trim() ? '<br>' : '') + content.replace(/\n/g, '<br>');
+    }
   }
   showToast(`Inserted into ${target.previousElementSibling ? target.previousElementSibling.innerText : 'field'}: ${tpl.name}`, 'info');
 }
@@ -792,8 +830,9 @@ function copyTemplateText(tplId, event) {
   if (event) event.stopPropagation();
   const tpl = _allTemplates.find(t => t.id === tplId);
   if (!tpl) return;
+  const cleanSnippet = stripHtmlToSnippet(tpl.body) || tpl.body;
   if (navigator.clipboard && navigator.clipboard.writeText) {
-    navigator.clipboard.writeText(tpl.body).then(() => {
+    navigator.clipboard.writeText(cleanSnippet).then(() => {
       showToast(`Copied "${tpl.name}" to clipboard!`, 'success');
     }).catch(() => {
       showToast('Clipboard access unavailable.', 'error');
@@ -808,20 +847,84 @@ function editTemplate(tplId, event) {
   openAddTemplateModal(tplId);
 }
 
-function deleteTemplateItem(tplId, event) {
+// ── CUSTOM IN-APP CONFIRMATION POPUP ────────────────────────────────
+function showConfirmDialog({
+  title = 'Delete Confirmation',
+  message = 'Are you sure you want to proceed?',
+  confirmText = '🗑 Yes, Delete',
+  icon = '🗑️',
+  isDanger = true
+} = {}) {
+  return new Promise((resolve) => {
+    const modal = document.getElementById('modal-custom-confirm');
+    const titleEl = document.getElementById('confirm-modal-title');
+    const msgEl = document.getElementById('confirm-modal-message');
+    const iconEl = document.getElementById('confirm-icon-wrap');
+    const okBtn = document.getElementById('confirm-btn-ok');
+    const cancelBtn = document.getElementById('confirm-btn-cancel');
+
+    if (titleEl) titleEl.textContent = title;
+    if (msgEl) msgEl.innerHTML = message;
+    if (iconEl) iconEl.textContent = icon;
+    if (okBtn) {
+      okBtn.innerHTML = confirmText;
+      okBtn.style.background = isDanger ? '#dc2626' : 'var(--teal)';
+      okBtn.style.borderColor = isDanger ? '#dc2626' : 'var(--teal)';
+    }
+
+    if (modal) modal.classList.add('open');
+
+    const handleConfirm = () => {
+      cleanup();
+      resolve(true);
+    };
+    const handleCancel = () => {
+      cleanup();
+      resolve(false);
+    };
+    const handleBackdrop = (e) => {
+      if (e.target === modal) handleCancel();
+    };
+
+    function cleanup() {
+      if (modal) {
+        modal.classList.remove('open');
+        modal.removeEventListener('click', handleBackdrop);
+      }
+      if (okBtn) okBtn.removeEventListener('click', handleConfirm);
+      if (cancelBtn) cancelBtn.removeEventListener('click', handleCancel);
+    }
+
+    if (modal) modal.addEventListener('click', handleBackdrop);
+    if (okBtn) okBtn.addEventListener('click', handleConfirm, { once: true });
+    if (cancelBtn) cancelBtn.addEventListener('click', handleCancel, { once: true });
+  });
+}
+
+async function deleteTemplateItem(tplId, event) {
   if (event) event.stopPropagation();
   const tpl = _allTemplates.find(t => t.id === tplId);
   const name = tpl ? tpl.name : 'this template';
-  if (!confirm(`Are you sure you want to delete "${name}"?`)) return;
 
-  HMC_DB.deleteTemplate(tplId).then(async () => {
+  const confirmed = await showConfirmDialog({
+    title: 'Delete Clinical Template',
+    message: `Are you sure you want to permanently delete template <strong>"${escapeHtml(name)}"</strong>? This action cannot be undone.`,
+    confirmText: '🗑 Yes, Delete',
+    icon: '🗑️',
+    isDanger: true
+  });
+  if (!confirmed) return;
+
+  try {
+    await HMC_DB.deleteTemplate(tplId);
     _allTemplates = await HMC_DB.getTemplates();
     renderTemplateCategories();
     renderTemplatesList();
+    scheduleCloudSync(800);
     showToast(`Template "${name}" deleted.`, 'info');
-  }).catch(err => {
+  } catch (err) {
     showToast('Error deleting template: ' + err.message, 'error');
-  });
+  }
 }
 
 async function syncTemplates() {
@@ -829,6 +932,7 @@ async function syncTemplates() {
     _allTemplates = await HMC_DB.getTemplates();
     renderTemplateCategories();
     renderTemplatesList();
+    scheduleCloudSync(800);
     showToast(`Synchronized ${_allTemplates.length} clinical templates!`, 'success');
   } catch (err) {
     showToast('Error syncing templates: ' + err.message, 'error');
@@ -866,7 +970,7 @@ function openAddTemplateModal(editTplId = null) {
       idEl.value = tpl.id;
       nameEl.value = tpl.name || '';
       catEl.value = tpl.cat || 'Findings';
-      bodyEl.value = tpl.body || '';
+      bodyEl.innerHTML = tpl.body || '';
       if (delBtn) delBtn.style.display = 'inline-flex';
       if (saveBtn) saveBtn.innerHTML = '💾 Update Template';
     }
@@ -875,13 +979,15 @@ function openAddTemplateModal(editTplId = null) {
     idEl.value = '';
     nameEl.value = '';
     catEl.value = (_activeCategory && _activeCategory !== 'All') ? _activeCategory : 'Findings';
-    bodyEl.value = '';
+    bodyEl.innerHTML = '';
     if (delBtn) delBtn.style.display = 'none';
     if (saveBtn) saveBtn.innerHTML = '💾 Save Template';
   }
 
   modal.classList.add('open');
-  setTimeout(() => nameEl.focus(), 100);
+  setTimeout(() => {
+    if (nameEl) nameEl.focus();
+  }, 100);
 }
 
 function closeAddTemplateModal() {
@@ -893,9 +999,11 @@ async function handleSaveNewTemplate() {
   const id = (document.getElementById('tpl-add-id').value || '').trim();
   const name = (document.getElementById('tpl-add-name').value || '').trim();
   const cat = (document.getElementById('tpl-add-cat').value || '').trim() || 'General';
-  const body = (document.getElementById('tpl-add-body').value || '').trim();
+  const bodyEl = document.getElementById('tpl-add-body');
+  const body = (bodyEl ? bodyEl.innerHTML : '').trim();
 
-  if (!name || !body) {
+  const cleanCheck = body.replace(/<[^>]+>/g, '').trim();
+  if (!name || (!body || (body === '<br>' || cleanCheck === ''))) {
     showToast('Please enter both template title and content.', 'error');
     return;
   }
@@ -913,6 +1021,7 @@ async function handleSaveNewTemplate() {
     renderTemplateCategories();
     renderTemplatesList();
     closeAddTemplateModal();
+    scheduleCloudSync(800);
     showToast(`Template "${name}" saved into "${cat}"!`, 'success');
   } catch (err) {
     showToast('Error saving template: ' + err.message, 'error');
@@ -924,7 +1033,15 @@ async function handleDeleteCurrentTemplate() {
   if (!id) return;
   const tpl = _allTemplates.find(t => t.id === id);
   const name = tpl ? tpl.name : 'this template';
-  if (!confirm(`Are you sure you want to delete "${name}"?`)) return;
+
+  const confirmed = await showConfirmDialog({
+    title: 'Delete Clinical Template',
+    message: `Are you sure you want to permanently delete template <strong>"${escapeHtml(name)}"</strong>? This action cannot be undone.`,
+    confirmText: '🗑 Yes, Delete',
+    icon: '🗑️',
+    isDanger: true
+  });
+  if (!confirmed) return;
 
   try {
     await HMC_DB.deleteTemplate(id);
@@ -932,6 +1049,7 @@ async function handleDeleteCurrentTemplate() {
     renderTemplateCategories();
     renderTemplatesList();
     closeAddTemplateModal();
+    scheduleCloudSync(800);
     showToast(`Template "${name}" deleted.`, 'info');
   } catch (err) {
     showToast('Error deleting template: ' + err.message, 'error');
