@@ -114,18 +114,28 @@ function initDB(versionToUse) {
 
 function seedDefaultTemplatesIfNeeded() {
   return new Promise((resolve) => {
-    if (!_dbInstance) return resolve();
-    const tx = _dbInstance.transaction('templates', 'readwrite');
-    const store = tx.objectStore('templates');
-    const countReq = store.count();
-
-    countReq.onsuccess = () => {
-      if (countReq.result === 0 && window.DEFAULT_CLINICAL_TEMPLATES) {
-        window.DEFAULT_CLINICAL_TEMPLATES.forEach(tpl => store.put(tpl));
+    try {
+      if (!_dbInstance || !_dbInstance.objectStoreNames.contains('templates')) {
+        return resolve();
       }
+      const tx = _dbInstance.transaction('templates', 'readwrite');
+      const store = tx.objectStore('templates');
+      const countReq = store.count();
+
+      countReq.onsuccess = () => {
+        try {
+          const defaults = window.DEFAULT_CLINICAL_TEMPLATES || window.CLINICAL_TEMPLATES || [];
+          if (countReq.result === 0 && Array.isArray(defaults) && defaults.length > 0) {
+            defaults.forEach(tpl => store.put(tpl));
+          }
+        } catch (e) {}
+        resolve();
+      };
+      countReq.onerror = () => resolve();
+      tx.onerror = () => resolve();
+    } catch (e) {
       resolve();
-    };
-    countReq.onerror = () => resolve();
+    }
   });
 }
 
@@ -870,28 +880,47 @@ function recordDeletedTemplateId(id) {
 }
 
 async function getTemplates() {
-  const db = await initDB();
-  return new Promise((resolve) => {
-    const tx = db.transaction('templates', 'readwrite');
-    const store = tx.objectStore('templates');
-    const req = store.getAll();
-    req.onsuccess = () => {
-      let list = req.result || [];
-      const defaults = window.DEFAULT_CLINICAL_TEMPLATES || window.CLINICAL_TEMPLATES || [];
-      const deletedIds = new Set(getDeletedTemplateIds());
-      if (defaults.length > 0) {
-        const existingIds = new Set(list.map(t => t.id));
-        defaults.forEach(defTpl => {
-          if (!existingIds.has(defTpl.id) && !deletedIds.has(defTpl.id)) {
-            store.put(defTpl);
-            list.push(defTpl);
+  const defaults = (window.DEFAULT_CLINICAL_TEMPLATES || window.CLINICAL_TEMPLATES || []).slice();
+  try {
+    const db = await initDB();
+    if (!db || !db.objectStoreNames.contains('templates')) {
+      return defaults;
+    }
+    return new Promise((resolve) => {
+      try {
+        const tx = db.transaction('templates', 'readwrite');
+        const store = tx.objectStore('templates');
+        const req = store.getAll();
+        req.onsuccess = () => {
+          try {
+            let list = req.result || [];
+            const deletedIds = new Set(getDeletedTemplateIds());
+            if (defaults.length > 0) {
+              const existingIds = new Set(list.map(t => t.id));
+              defaults.forEach(defTpl => {
+                if (!existingIds.has(defTpl.id) && !deletedIds.has(defTpl.id)) {
+                  try { store.put(defTpl); } catch (e) {}
+                  list.push(defTpl);
+                }
+              });
+            }
+            if (!list || list.length === 0) {
+              list = defaults;
+            }
+            resolve(list);
+          } catch (err) {
+            resolve(defaults);
           }
-        });
+        };
+        req.onerror = () => resolve(defaults);
+        tx.onerror = () => resolve(defaults);
+      } catch (err) {
+        resolve(defaults);
       }
-      resolve(list);
-    };
-    req.onerror = () => resolve(window.DEFAULT_CLINICAL_TEMPLATES || window.CLINICAL_TEMPLATES || []);
-  });
+    });
+  } catch (err) {
+    return defaults;
+  }
 }
 
 async function saveTemplate(tpl) {

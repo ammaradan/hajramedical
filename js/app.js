@@ -668,45 +668,66 @@ const TPL_CAT_FIELD = {
 };
 
 async function setupTemplatesUI() {
-  _allTemplates = await HMC_DB.getTemplates();
-  renderTemplateCategories();
-  renderTemplatesList();
+  // Pre-load default templates synchronously so UI is immediately populated
+  if (Array.isArray(window.DEFAULT_CLINICAL_TEMPLATES) && window.DEFAULT_CLINICAL_TEMPLATES.length > 0) {
+    _allTemplates = window.DEFAULT_CLINICAL_TEMPLATES.slice();
+    renderTemplateCategories();
+    renderTemplatesList();
+  }
+
+  try {
+    const dbTpls = await HMC_DB.getTemplates();
+    if (Array.isArray(dbTpls) && dbTpls.length > 0) {
+      _allTemplates = dbTpls;
+      renderTemplateCategories();
+      renderTemplatesList();
+    }
+  } catch (err) {
+    console.warn('Templates DB load fallback:', err);
+  }
 
   const searchInput = document.getElementById('tpl-search-input');
-  searchInput.addEventListener('input', () => renderTemplatesList());
+  if (searchInput && !searchInput.dataset.bound) {
+    searchInput.dataset.bound = 'true';
+    searchInput.addEventListener('input', () => renderTemplatesList());
+  }
 }
 
 function toggleTemplatesPanel() {
+  // Ensure templates are populated if somehow empty
+  if (!_allTemplates || _allTemplates.length === 0) {
+    if (Array.isArray(window.DEFAULT_CLINICAL_TEMPLATES) && window.DEFAULT_CLINICAL_TEMPLATES.length > 0) {
+      _allTemplates = window.DEFAULT_CLINICAL_TEMPLATES.slice();
+    }
+    renderTemplateCategories();
+    renderTemplatesList();
+  }
+
   const appContainer = document.querySelector('.app-container');
+  if (!appContainer) return;
   const isOpen = appContainer.classList.toggle('templates-open');
+
   const btn = document.getElementById('btn-toggle-templates');
   if (btn) {
-    btn.innerHTML = isOpen ? '✕ Close Templates' : '⚡ Clinical Templates';
+    btn.innerHTML = isOpen ? '✕ Close Templates' : '⚡ Templates';
+    btn.classList.toggle('active', isOpen);
   }
+
+  const ribbonBtn = document.getElementById('floating-templates-ribbon');
+  if (ribbonBtn) {
+    ribbonBtn.classList.toggle('active', isOpen);
+    ribbonBtn.setAttribute('title', isOpen ? 'Close Templates Drawer' : 'Clinical Templates (⚡)');
+  }
+
   const pillBtn = document.getElementById('mpill-templates');
   if (pillBtn) {
     pillBtn.classList.toggle('active', isOpen);
   }
 }
 
-function tplPanelMouseEnter() {
-  if (_tplAutoCloseTimer) {
-    clearTimeout(_tplAutoCloseTimer);
-    _tplAutoCloseTimer = null;
-  }
-}
-
-function tplPanelMouseLeave() {
-  if (_tplAutoCloseTimer) clearTimeout(_tplAutoCloseTimer);
-  _tplAutoCloseTimer = setTimeout(() => {
-    const container = document.querySelector('.app-container');
-    if (container && container.classList.contains('templates-open')) {
-      container.classList.remove('templates-open');
-      const btn = document.getElementById('btn-toggle-templates');
-      if (btn) btn.innerHTML = '⚡ Clinical Templates';
-    }
-  }, 3500);
-}
+// Auto-close timers removed per user request: templates stay open until explicitly closed
+function tplPanelMouseEnter() {}
+function tplPanelMouseLeave() {}
 
 function renderTemplateCategories() {
   const cats = ['All'];

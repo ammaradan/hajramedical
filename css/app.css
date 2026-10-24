@@ -156,12 +156,84 @@ body {
 }
 
 .hbtn-templates {
-  background: #F59E0B;
+  background: linear-gradient(135deg, #F59E0B 0%, #D97706 100%);
   color: #fff;
   font-weight: 700;
+  box-shadow: 0 2px 8px rgba(245, 158, 11, 0.35);
+  border: 1px solid rgba(255, 255, 255, 0.25);
 }
 .hbtn-templates:hover {
-  background: #D97706;
+  background: linear-gradient(135deg, #D97706 0%, #B45309 100%);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(245, 158, 11, 0.5);
+}
+.hbtn-templates.active {
+  background: linear-gradient(135deg, #D81B60 0%, #C2185B 100%);
+  box-shadow: 0 2px 8px rgba(216, 27, 96, 0.4);
+}
+
+/* ── FLOATING SIDE TEMPLATES RIBBON ────────────────────────────── */
+.floating-templates-ribbon {
+  position: fixed;
+  right: 0;
+  top: 48%;
+  transform: translateY(-50%);
+  z-index: 1040;
+  background: linear-gradient(145deg, #0D2B45 0%, #008060 100%);
+  color: #FFFFFF;
+  border: 1.5px solid rgba(255, 255, 255, 0.35);
+  border-right: none;
+  border-radius: 12px 0 0 12px;
+  padding: 14px 8px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  cursor: pointer;
+  box-shadow: -4px 6px 20px rgba(13, 43, 69, 0.35);
+  transition: right 0.3s cubic-bezier(0.4, 0, 0.2, 1), background 0.2s ease, transform 0.2s ease;
+  user-select: none;
+}
+
+.floating-templates-ribbon:hover {
+  background: linear-gradient(145deg, #F59E0B 0%, #D97706 100%);
+  transform: translateY(-50%) translateX(-3px);
+  box-shadow: -6px 8px 24px rgba(245, 158, 11, 0.5);
+}
+
+.floating-templates-ribbon.active {
+  background: linear-gradient(145deg, #D81B60 0%, #9C1444 100%);
+  box-shadow: -4px 6px 20px rgba(216, 27, 96, 0.45);
+}
+
+.floating-templates-ribbon .ribbon-icon {
+  font-size: 16px;
+  line-height: 1;
+}
+
+.floating-templates-ribbon .ribbon-text {
+  writing-mode: vertical-rl;
+  text-orientation: mixed;
+  transform: rotate(180deg);
+  font-size: 11.5px;
+  font-weight: 800;
+  letter-spacing: 1.8px;
+  text-transform: uppercase;
+  color: #FFFFFF;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
+}
+
+@media (min-width: 881px) {
+  .app-container.templates-open ~ .floating-templates-ribbon {
+    right: 320px;
+  }
+}
+
+@media (max-width: 880px) {
+  .floating-templates-ribbon {
+    display: none !important;
+  }
 }
 
 /* ── MAIN APP LAYOUT (3 columns) ───────────────────────────────── */
@@ -1671,7 +1743,8 @@ body {
 /* ── IPD CONTAINER & WORKSPACE ───────────────────────────────── */
 #ipd-container {
   padding: 20px 24px 80px 24px;
-  max-width: 1350px;
+  max-width: 1560px;
+  width: 100%;
   margin: 0 auto;
 }
 

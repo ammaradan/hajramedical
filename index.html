@@ -41,6 +41,11 @@
         <span id="header-clock-time">Loading...</span>
       </div>
 
+      <!-- Direct Clinical Templates Button in Header -->
+      <button type="button" class="hbtn hbtn-templates" id="btn-toggle-templates" onclick="toggleTemplatesPanel()" title="Clinical Templates (⚡)">
+        <span>⚡</span> Templates
+      </button>
+
       <!-- Cloud Sync Button -->
       <button class="hbtn hbtn-sync" id="btn-header-sync" onclick="handleCloudSyncClick()" title="Cloud Data Sync (Multi-Device)">
         <span>☁</span> Sync
@@ -379,7 +384,7 @@
     </main>
 
     <!-- ── RIGHT FLYOUT: CLINICAL TEMPLATES ────────────────────────── -->
-    <aside class="templates-panel" id="templates-flyout" onmouseenter="tplPanelMouseEnter()" onmouseleave="tplPanelMouseLeave()">
+    <aside class="templates-panel" id="templates-flyout">
       <div class="tpl-header">
         <div style="display:flex;align-items:center;gap:8px;">
           <span>⚡</span>
@@ -421,6 +426,12 @@
     </aside>
 
   </div><!-- /app-container -->
+
+  <!-- ── FLOATING SIDE TEMPLATES RIBBON ────────────────────────────── -->
+  <button type="button" class="floating-templates-ribbon no-print" id="floating-templates-ribbon" onclick="toggleTemplatesPanel()" title="Clinical Templates (⚡)">
+    <span class="ribbon-icon">⚡</span>
+    <span class="ribbon-text">Templates</span>
+  </button>
 
   <!-- ── STICKY ACTIONS BAR ────────────────────────────────────────── -->
   <footer class="action-bar-bottom no-print">
@@ -1911,11 +1922,11 @@
   </div>
 
   <!-- SCRIPTS -->
-  <script src="assets/images-base64.js"></script>
   <script src="js/templates-data.js"></script>
   <script src="js/db.js"></script>
   <script src="js/app.js"></script>
   <script src="js/ipd.js"></script>
+  <script src="assets/images-base64.js" defer></script>
   <script>
     if ('serviceWorker' in navigator && window.location.protocol.startsWith('http')) {
       window.addEventListener('load', () => {
