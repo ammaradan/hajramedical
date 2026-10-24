@@ -229,12 +229,9 @@
 
 /* Unified Prescription Footer & Urdu Consent Box */
 .rx-footer-box {
-  margin-top: 2.5mm;
+  margin-top: 0;
   margin-bottom: 0;
-  border-top: 1.2px solid #000;
-  border-bottom: 1.2px solid #000;
-  border-left: none;
-  border-right: none;
+  border: none;
   box-sizing: border-box;
   width: 100%;
   background: #FFFFFF;
@@ -243,36 +240,42 @@
 }
 
 .rx-consent-line {
-  padding: 1.4mm 1.5mm 0.5mm 1.5mm;
-  line-height: 1.35;
+  line-height: 1.4;
   direction: rtl;
   font-family: "Noto Nastaliq Urdu", "Jameel Noori Nastaleeq", "Urdu Typesetting", "Arial Unicode MS", "Segoe UI", Tahoma, sans-serif;
   text-align: center;
-  font-size: 6.8pt;
+  box-sizing: border-box;
+  color: #000;
+  border: none;
+}
+
+.rx-consent-l1 {
+  font-size: 7.4pt;
   font-weight: 500;
+  padding: 1.5mm 1.5mm 0.4mm 1.5mm;
   white-space: nowrap;
-  letter-spacing: -0.15px;
-  box-sizing: border-box;
-  color: #000;
-  border: none;
 }
 
-.rx-note-line {
-  padding: 0.5mm 1.5mm 1.4mm 1.5mm;
-  line-height: 1.35;
-  direction: rtl;
-  font-family: "Noto Nastaliq Urdu", "Jameel Noori Nastaleeq", "Urdu Typesetting", "Arial Unicode MS", "Segoe UI", Tahoma, sans-serif;
-  text-align: center;
-  font-size: 8pt;
+.rx-consent-l2 {
+  font-size: 7.1pt;
   font-weight: 500;
-  box-sizing: border-box;
-  color: #000;
-  border: none;
+  padding: 0.4mm 1.5mm 1.5mm 1.5mm;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  white-space: nowrap;
 }
 
-.rx-note-line strong {
+.rx-consent-l2 .rx-note-inline {
+  font-size: 7.4pt;
+  font-weight: 600;
+  color: #000;
+}
+
+.rx-consent-l2 .rx-note-inline strong {
   font-weight: 800;
-  font-size: 8.5pt;
+  font-size: 7.8pt;
   color: #000;
 }
 
@@ -482,16 +485,13 @@
     flex-shrink: 0 !important;
   }
 
-  /* Footer Box Anchored Firmly at the Bottom Edge of A4 */
+  /* Footer Box Anchored Firmly at the Bottom Edge of A4 - Single Merged Border */
   .rx-footer-box {
     flex-shrink: 0 !important;
     width: 100% !important;
     box-sizing: border-box !important;
-    border-top: 1.2px solid #000 !important;
-    border-bottom: 1.2px solid #000 !important;
-    border-left: none !important;
-    border-right: none !important;
-    margin-top: 2mm !important;
+    border: none !important;
+    margin-top: 0 !important;
     margin-bottom: 0 !important;
     page-break-inside: avoid !important;
     break-inside: avoid !important;
@@ -499,26 +499,37 @@
   }
 
   .rx-consent-line {
-    padding: 1.2mm 1mm 0.5mm 1mm !important;
-    font-size: 6.8pt !important;
-    line-height: 1.35 !important;
-    white-space: nowrap !important;
     border: none !important;
     text-align: center !important;
+    line-height: 1.4 !important;
   }
 
-  .rx-note-line {
-    padding: 0.5mm 1mm 1.2mm 1mm !important;
-    font-size: 8pt !important;
-    line-height: 1.35 !important;
-    border: none !important;
-    text-align: center !important;
+  .rx-consent-l1 {
+    padding: 1.5mm 1mm 0.4mm 1mm !important;
+    font-size: 7.4pt !important;
+    white-space: nowrap !important;
+  }
+
+  .rx-consent-l2 {
+    padding: 0.4mm 1mm 1.5mm 1mm !important;
+    font-size: 7.1pt !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    gap: 16px !important;
+    white-space: nowrap !important;
+  }
+
+  .rx-consent-l2 .rx-note-inline {
+    font-size: 7.4pt !important;
   }
 
   .rx-footer-strip {
     flex-shrink: 0 !important;
     border-top: 1px solid #000 !important;
-    border-bottom: none !important;
+    border-bottom: 1px solid #000 !important;
+    border-left: none !important;
+    border-right: none !important;
     padding: 1.2mm 2.5mm !important;
     background: #FFFFFF !important;
   }
