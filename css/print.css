@@ -230,8 +230,11 @@
 /* Unified Prescription Footer & Urdu Consent Box */
 .rx-footer-box {
   margin-top: 2.5mm;
-  margin-bottom: 1.5mm;
-  border: 1.5px solid #000;
+  margin-bottom: 0;
+  border-top: 1.2px solid #000;
+  border-bottom: 1.2px solid #000;
+  border-left: none;
+  border-right: none;
   box-sizing: border-box;
   width: 100%;
   background: #FFFFFF;
@@ -239,23 +242,38 @@
   overflow: hidden;
 }
 
-.rx-consent-box {
-  margin-top: 2.5mm;
-  border: 1.5px solid #000;
-  border-bottom: none;
+.rx-consent-line {
+  padding: 1.4mm 1.5mm 0.5mm 1.5mm;
+  line-height: 1.35;
+  direction: rtl;
+  font-family: "Noto Nastaliq Urdu", "Jameel Noori Nastaleeq", "Urdu Typesetting", "Arial Unicode MS", "Segoe UI", Tahoma, sans-serif;
+  text-align: center;
+  font-size: 6.8pt;
+  font-weight: 500;
+  white-space: nowrap;
+  letter-spacing: -0.15px;
   box-sizing: border-box;
-  width: 100%;
+  color: #000;
+  border: none;
 }
 
-.rx-consent-item {
-  padding: 1.2mm 2.5mm;
-  border-bottom: 1px solid #000;
-  line-height: 1.6;
+.rx-note-line {
+  padding: 0.5mm 1.5mm 1.4mm 1.5mm;
+  line-height: 1.35;
   direction: rtl;
-  font-family: "Noto Nastaliq Urdu", "Jameel Noori Nastaleeq", "Arial Unicode MS", serif;
-  text-align: right;
-  font-size: 8.5pt;
+  font-family: "Noto Nastaliq Urdu", "Jameel Noori Nastaleeq", "Urdu Typesetting", "Arial Unicode MS", "Segoe UI", Tahoma, sans-serif;
+  text-align: center;
+  font-size: 8pt;
+  font-weight: 500;
   box-sizing: border-box;
+  color: #000;
+  border: none;
+}
+
+.rx-note-line strong {
+  font-weight: 800;
+  font-size: 8.5pt;
+  color: #000;
 }
 
 /* Prescription Footer Row */
@@ -469,7 +487,10 @@
     flex-shrink: 0 !important;
     width: 100% !important;
     box-sizing: border-box !important;
-    border: 1.5px solid #000 !important;
+    border-top: 1.2px solid #000 !important;
+    border-bottom: 1.2px solid #000 !important;
+    border-left: none !important;
+    border-right: none !important;
     margin-top: 2mm !important;
     margin-bottom: 0 !important;
     page-break-inside: avoid !important;
@@ -477,11 +498,21 @@
     background: #FFFFFF !important;
   }
 
-  .rx-consent-item {
-    border-bottom: 1px solid #000 !important;
-    padding: 1mm 2.5mm !important;
-    font-size: 8.5pt !important;
-    line-height: 1.5 !important;
+  .rx-consent-line {
+    padding: 1.2mm 1mm 0.5mm 1mm !important;
+    font-size: 6.8pt !important;
+    line-height: 1.35 !important;
+    white-space: nowrap !important;
+    border: none !important;
+    text-align: center !important;
+  }
+
+  .rx-note-line {
+    padding: 0.5mm 1mm 1.2mm 1mm !important;
+    font-size: 8pt !important;
+    line-height: 1.35 !important;
+    border: none !important;
+    text-align: center !important;
   }
 
   .rx-footer-strip {

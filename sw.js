@@ -1,7 +1,7 @@
 // Service Worker for Hajra Medical Complex PWA
 // Provides 100% offline capability on mobile & desktop
 
-const CACHE_NAME = 'hmc-cache-v9';
+const CACHE_NAME = 'hmc-cache-v10';
 const STATIC_ASSETS = [
   './',
   './index.html',
